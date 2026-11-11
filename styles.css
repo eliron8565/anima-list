@@ -6,8 +6,8 @@
   font-family: "Heebo", sans-serif;
 }
 * { box-sizing: border-box; }
-html { scroll-behavior: smooth; }
-body { margin: 0; min-height: 100vh; background: var(--bg); color: var(--text); overflow-x: hidden; }
+html { scroll-behavior: smooth; width: 100%; max-width: 100%; overflow-x: clip; }
+body { margin: 0; width: 100%; max-width: 100%; min-width: 0; min-height: 100vh; background: var(--bg); color: var(--text); overflow-x: clip; }
 button, input { font: inherit; }
 button { cursor: pointer; }
 button:disabled { cursor: not-allowed; opacity: .55; }
@@ -15,19 +15,19 @@ a { color: inherit; text-decoration: none; }
 [hidden] { display: none !important; }
 :focus-visible { outline: 2px solid #b8a3ff; outline-offset: 3px; }
 ::selection { background: #7562cb; color: white; }
-.container { width: min(1180px, calc(100% - 44px)); margin-inline: auto; }
-.ambient { position: absolute; z-index: -1; pointer-events: none; filter: blur(76px); opacity: .24; border-radius: 50%; }
+.container { width: min(1180px, calc(100% - 44px)); max-width: calc(100% - 24px); min-width: 0; margin-inline: auto; }
+.ambient { position: fixed; z-index: -1; pointer-events: none; filter: blur(76px); opacity: .24; border-radius: 50%; }
 .ambient-one { width: 480px; height: 460px; background: #5935c8; inset: -150px auto auto -100px; }
 .ambient-two { width: 360px; height: 360px; background: #362b90; inset: 540px -150px auto auto; opacity: .2; }
 .glass { background: rgba(16, 20, 36, .72); backdrop-filter: blur(22px); -webkit-backdrop-filter: blur(22px); border-bottom: 1px solid var(--line); }
-.site-header { position: sticky; top: 0; z-index: 10; }
-.header-inner { min-height: 78px; display: flex; justify-content: space-between; align-items: center; gap: 20px; }
-.brand { display: flex; align-items: center; gap: 12px; font-weight: 900; font-size: 25px; line-height: 1; letter-spacing: -.8px; direction: ltr; }
-.brand > span:last-child { display: flex; flex-direction: column; }
+.site-header { position: sticky; top: 0; z-index: 10; width: 100%; max-width: 100%; }
+.header-inner { min-height: 78px; display: flex; justify-content: space-between; align-items: center; gap: 20px; min-width: 0; }
+.brand { display: flex; align-items: center; gap: 12px; min-width: 0; font-weight: 900; font-size: 25px; line-height: 1; letter-spacing: -.8px; direction: ltr; }
+.brand > span:last-child { display: flex; flex-direction: column; min-width: 0; }
 .brand small { direction: rtl; text-align: right; font-size: 11px; font-weight: 600; letter-spacing: .2px; color: #a2a8be; padding-top: 6px; }
 .brand-mark { width: 43px; height: 43px; background: linear-gradient(145deg, #a17bff, #6556ec); display: grid; place-items: center; box-shadow: 0 6px 28px rgba(111,79,244,.26); border-radius: 14px; color: white; font-size: 16px; }
 .accent-text { color: #a18bff; }
-.header-actions { display: flex; align-items: center; gap: 22px; }
+.header-actions { display: flex; flex: none; align-items: center; gap: 22px; }
 .connection { display: inline-flex; align-items: center; gap: 8px; color: var(--subtle); font-size: 13px; font-weight: 600; white-space: nowrap; }
 .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #d29e5f; box-shadow: 0 0 12px #d29e5f70; }
 .connection.online .status-dot { background: var(--green); box-shadow: 0 0 12px #50d2a370; }
@@ -53,7 +53,7 @@ a { color: inherit; text-decoration: none; }
 .notice > i { margin-top: 5px; }
 .notice strong { font-size: 15px; }
 .notice p { margin: 6px 0 0; color: #c9c4eb; font-size: 14px; line-height: 1.8; }
-.library { padding: 50px 0 90px; min-height: 420px; }
+.library { padding: 50px 0 90px; min-height: 420px; width: 100%; min-width: 0; }
 .section-heading { display: flex; align-items: end; justify-content: space-between; gap: 15px; margin-bottom: 25px; }
 .eyebrow.muted { font-size: 10px; color: #8b86aa; margin-bottom: 8px; }
 .section-heading h2 { margin: 0; font-size: clamp(24px, 3vw, 32px); letter-spacing: -.5px; }
@@ -178,14 +178,16 @@ a { color: inherit; text-decoration: none; }
 /* Real phone layout: poster and content above a full-width control row. */
 @media (max-width: 600px) {
   .container { width: calc(100% - 24px); }
-  .site-header .header-inner { min-height: 65px; gap: 8px; }
-  .brand { gap: 7px; font-size: 19px; min-width: 0; }
+  .site-header .header-inner { min-height: 65px; gap: 8px; width: calc(100% - 24px); max-width: 100%; }
+  .brand { flex: 1 1 auto; gap: 7px; font-size: 19px; min-width: 0; overflow: hidden; }
   .brand-mark { flex: none; width: 35px; height: 35px; border-radius: 11px; }
   .brand small { font-size: 9px; }
+  .brand > span:last-child { overflow: hidden; text-overflow: ellipsis; }
   .header-actions { gap: 6px; }
   .connection { display: none; }
   .header-actions .btn { min-height: 41px; padding: 8px 12px; font-size: 12px; white-space: nowrap; }
-  .hero { padding: 39px 0 32px; }
+  /* On phones, skip the huge introductory hero so the collection appears immediately. */
+  .hero { display: none; }
   .hero h1 { font-size: clamp(34px, 9.2vw, 48px); line-height: 1.25; letter-spacing: -1px; }
   .hero-subtitle { font-size: 14px; line-height: 1.65; }
   .stats { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 5px; align-items: start; margin-top: 25px; }
@@ -193,10 +195,10 @@ a { color: inherit; text-decoration: none; }
   .stat strong { font-size: 22px; }
   .stat span { font-size: 11px; }
   .stat-divider { display: none; }
-  .library { padding: 32px 0 55px; }
+  .library { padding: 18px 0 55px; min-height: 0; }
   .section-heading { align-items: center; margin-bottom: 16px; }
   .section-heading h2 { font-size: 25px; }
-  .category-tabs { display: flex; flex-wrap: nowrap; overflow-x: auto; width: 100%; padding: 1px 0 10px; margin: 0 0 12px; scrollbar-width: none; scroll-snap-type: x proximity; gap: 8px; }
+  .category-tabs { display: flex; flex-wrap: nowrap; overflow-x: auto; max-width: 100%; width: 100%; padding: 1px 0 10px; margin: 0 0 12px; scrollbar-width: none; scroll-snap-type: x proximity; overscroll-behavior-inline: contain; gap: 8px; }
   .category-tabs::-webkit-scrollbar { display: none; }
   .category-tab { flex: 0 0 auto; min-height: 42px; padding: 9px 12px; scroll-snap-align: start; font-size: 12px; }
   .toolbar { flex-direction: column; align-items: stretch; gap: 12px; margin-bottom: 18px; }
@@ -302,6 +304,11 @@ a { color: inherit; text-decoration: none; }
   .watch-text i { display: none; }
   .card-buttons { gap: 5px; }
   .icon-button, .play-link { width: 34px; height: 38px; }
+}
+
+/* Touch phones requesting a desktop viewport still shouldn't show a giant empty intro. */
+@media (pointer: coarse) and (hover: none) {
+  .hero { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
