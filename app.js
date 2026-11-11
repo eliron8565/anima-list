@@ -8,7 +8,7 @@ import {
   getDatabase, ref, onValue, push, set, update, remove, runTransaction, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
 import { firebaseConfig } from "./firebase-config.js";
-import { findPosterByTitle, findPosterMatchByTitle } from "./poster-lookup.js";
+import { findPosterMatchByTitle } from "./poster-lookup.js";
 
 const $ = (selector) => document.querySelector(selector);
 const elements = {
@@ -19,6 +19,10 @@ const elements = {
   cancel: $("#cancelModal"),
   form: $("#addForm"),
   submit: $("#submitAdd"),
+  dialogTitle: $("#dialogTitle"),
+  dialogDescription: $("#dialogDescription"),
+  categoryInput: $("#categoryInput"),
+  unsortedOption: $("#unsortedOption"),
   search: $("#searchInput"),
   posterSync: $("#posterSyncStatus"),
   total: $("#totalCount"),
@@ -43,9 +47,11 @@ let currentFilter = "all";
 let currentCategory = "all";
 let currentSearch = "";
 let toastTimer;
-// Prevent repeated lookups on every Firebase onValue event.
-const attemptedPosters = new Set();
-const lookingUpPosters = new Set();
+let editingId = null;
+// Run catalog enrichment for older entries once per browser session,
+// avoiding repeated API requests for every Firebase onValue event.
+const attemptedMetadata = new Set();
+const lookingUpMetadata = new Set();
 let backfillRunning = false;
 
 function setStatus(message, mode = "") {
@@ -170,21 +176,23 @@ function createCard(show) {
   if (!imageUrl) {
     const retry = el("button", "poster-retry");
     retry.type = "button";
-    retry.disabled = lookingUpPosters.has(show.id);
+    retry.disabled = lookingUpMetadata.has(show.id);
     retry.append(icon("fa-solid fa-image"), document.createTextNode(
-      retry.disabled ? "מחפש תמונה..." : "חפש פוסטר"
+      retry.disabled ? "מחפש..." : "חפש פוסטר"
     ));
     retry.setAttribute("aria-label", "חפש פוסטר אוטומטי עבור " + show.title);
     retry.addEventListener("click", () => {
-      attemptedPosters.add(show.id);
-      void fillMissingPoster(show, true);
+      attemptedMetadata.add(show.id);
+      void enrichShow(show, true);
     });
     poster.append(retry);
   }
 
   const badge = el("span", "poster-badge" + (show.watched ? " watched" : ""),
     show.watched ? "✓ צפיתי" : "עוד לא צפיתי");
-  poster.append(badge, el("h3", "poster-title", show.title));
+  const titleElement = el("h3", "poster-title", show.title);
+  titleElement.setAttribute("dir", "auto");
+  poster.append(badge, titleElement);
 
   const body = el("div", "card-body");
   const categoryRow = el("div", "category-row");
@@ -245,6 +253,13 @@ function createCard(show) {
     buttons.append(play);
   }
 
+  const editButton = el("button", "icon-button edit");
+  editButton.type = "button";
+  editButton.title = "עריכת פרטי הסדרה";
+  editButton.setAttribute("aria-label", "ערוך את " + show.title);
+  editButton.append(icon("fa-solid fa-pen"));
+  editButton.addEventListener("click", () => openEditModal(show));
+
   const deleteButton = el("button", "icon-button delete");
   deleteButton.type = "button";
   deleteButton.title = "מחיקה";
@@ -252,16 +267,41 @@ function createCard(show) {
   deleteButton.append(icon("fa-regular fa-trash-can"));
   deleteButton.addEventListener("click", () => deleteShow(show));
 
-  buttons.append(deleteButton);
+  buttons.append(editButton, deleteButton);
   actions.append(toggle, buttons);
   body.append(categoryRow, ratingRow, actions);
   card.append(poster, body);
   return card;
 }
 
+function setSubmitLabel(label, iconClass = "fa-solid fa-plus") {
+  elements.submit.replaceChildren(icon(iconClass), document.createTextNode(" " + label));
+}
+
 function openModal() {
   if (elements.open.disabled) return;
+  editingId = null;
   elements.form.reset();
+  elements.unsortedOption.hidden = true;
+  elements.dialogTitle.textContent = "מוסיפים לספרייה";
+  elements.dialogDescription.textContent = "עוד סיפור מצוין להצטרף לאוסף שלנו.";
+  setSubmitLabel("הוסף לספרייה");
+  elements.modal.showModal();
+  $("#titleInput").focus();
+}
+
+function openEditModal(show) {
+  if (elements.open.disabled) return;
+  editingId = show.id;
+  elements.form.reset();
+  elements.unsortedOption.hidden = false;
+  $("#titleInput").value = show.title;
+  elements.categoryInput.value = show.category;
+  $("#posterInput").value = show.posterUrl;
+  $("#watchInput").value = show.watchUrl;
+  elements.dialogTitle.textContent = "עריכת פרטי הסדרה";
+  elements.dialogDescription.textContent = "אפשר לשנות שם, קטגוריה, תמונה וקישור לצפייה.";
+  setSubmitLabel("שמור שינויים", "fa-solid fa-check");
   elements.modal.showModal();
   $("#titleInput").focus();
 }
@@ -319,7 +359,8 @@ elements.form.addEventListener("submit", async (event) => {
   const posterUrl = rawPosterUrl ? httpsUrl(rawPosterUrl) : null;
   const rawWatchUrl = $("#watchInput").value.trim();
   const watchUrl = rawWatchUrl ? httpsUrl(rawWatchUrl) : null;
-  if (!title || title.length > 100 || !["anime", "series"].includes(category) ||
+  if (!title || title.length > 100 ||
+      !(editingId ? ["anime", "series", "unsorted"] : ["anime", "series"]).includes(category) ||
       (rawPosterUrl && (!posterUrl || posterUrl.length > 2048)) ||
       (rawWatchUrl && (!watchUrl || watchUrl.length > 2048))) {
     toast("יש להזין שם וקישורי HTTPS תקינים אם הוזנו.", true);
