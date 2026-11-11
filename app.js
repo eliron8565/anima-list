@@ -124,6 +124,154 @@ function hasWatched(show) {
   return personalProgress[show.id]?.watched === true;
 }
 
+function accountDisplayName(user) {
+  if (!user || user.isAnonymous) return "אורח";
+  return (user.displayName || "משתמש Google").trim().slice(0, 40);
+}
+
+function showAccountDetails() {
+  const googleAccount = !!viewerUser && !viewerUser.isAnonymous;
+  const name = profileName || "אורח";
+  elements.accountName.textContent = name;
+  elements.profileName.textContent = name;
+  elements.profileMode.textContent = googleAccount ?
+    "מחובר עם Google · מעקב אישי מסונכרן" :
+    "מצב אורח · המעקב נשמר רק בדפדפן הזה";
+  elements.accountDescription.textContent = googleAccount ?
+    "הסדרות שחברים מוסיפים משותפות לכולם. מה שצפית בו נשמר רק בחשבון שלך." :
+    "לשמירת רשימת הצפייה בטלפון ובמחשב, התחבר עם Google.";
+  elements.googleLogin.hidden = googleAccount;
+  elements.logoutAccount.hidden = !googleAccount;
+  elements.accountButton.disabled = !viewerUser;
+  elements.renameProfile.disabled = !viewerUser;
+  elements.importOldWatched.disabled = !viewerUser;
+}
+
+function listenToUserData(user) {
+  if (stopProgressListening) stopProgressListening();
+  if (stopProfileListening) stopProfileListening();
+  viewerUser = user;
+  personalProgress = {};
+  profileName = accountDisplayName(user);
+  render();
+  showAccountDetails();
+  if (!user) return;
+
+  const ownUid = user.uid;
+  stopProgressListening = onValue(ref(db, "userProgress/" + ownUid), (snapshot) => {
+    if (viewerUser?.uid !== ownUid) return;
+    personalProgress = snapshot.val() || {};
+    render();
+  }, (error) => {
+    console.error("Cannot load personal watched progress:", error);
+    toast("אין הרשאה לקרוא את סימוני הצפייה האישיים. עדכן את כללי Firebase.", true);
+  });
+
+  stopProfileListening = onValue(ref(db, "profiles/" + ownUid), (snapshot) => {
+    if (viewerUser?.uid !== ownUid) return;
+    const stored = snapshot.val()?.name;
+    profileName = typeof stored === "string" && stored.trim() ?
+      stored.trim().slice(0, 40) : accountDisplayName(user);
+    showAccountDetails();
+  }, (error) => console.warn("Could not load profile:", error));
+}
+
+async function setPersonalWatched(showId, watched) {
+  if (!viewerUser) {
+    toast("צריך להתחבר לפני ששומרים מעקב צפייה.", true);
+    return;
+  }
+  try {
+    await set(ref(db, "userProgress/" + viewerUser.uid + "/" + showId), {
+      watched: watched === true,
+      updatedAt: serverTimestamp()
+    });
+  } catch (error) {
+    console.error("Saving personal progress failed:", error);
+    toast("לא הצלחנו לשמור את הסימון האישי. ודא שעדכנת את כללי Firebase.", true);
+  }
+}
+
+async function logInWithGoogle() {
+  if (!auth || loginPending) return;
+  loginPending = true;
+  elements.googleLogin.disabled = true;
+  try {
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: "select_account" });
+    await signInWithPopup(auth, provider);
+    elements.accountDialog.close();
+    toast("התחברת בהצלחה! מעכשיו הסימונים שלך יסתנכרנו בין המכשירים.");
+  } catch (error) {
+    console.error("Google login failed:", error);
+    const code = error?.code || "";
+    if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request") {
+      return;
+    }
+    if (code === "auth/operation-not-allowed") {
+      toast("צריך להפעיל Google ב-Firebase Authentication → Sign-in method.", true);
+    } else if (code === "auth/unauthorized-domain") {
+      toast("צריך לאשר את eliron8565.github.io ב-Firebase Authentication → Settings.", true);
+    } else if (code === "auth/popup-blocked") {
+      toast("הדפדפן חסם את חלון Google. אפשר חלונות קופצים לאתר או נסה Chrome.", true);
+    } else {
+      toast("ההתחברות נכשלה. בדוק ש-Google מופעל ב-Firebase ונסה שוב.", true);
+    }
+  } finally {
+    loginPending = false;
+    elements.googleLogin.disabled = false;
+  }
+}
+
+async function renameMyProfile() {
+  if (!viewerUser) return;
+  const requested = window.prompt("איך לקרוא לך באתר? לדוגמה: אלירון", profileName);
+  if (requested === null) return;
+  const name = requested.trim();
+  if (!name || name.length > 40) {
+    toast("השם חייב להכיל בין 1 ל־40 תווים.", true);
+    return;
+  }
+  try {
+    await set(ref(db, "profiles/" + viewerUser.uid), { name });
+    toast("שם התצוגה עודכן ל־" + name);
+  } catch (error) {
+    console.error("Rename failed:", error);
+    toast("שמירת השם נכשלה. בדוק את כללי Firebase.", true);
+  }
+}
+
+async function importOldWatched() {
+  if (!viewerUser) return;
+  const oldWatched = shows.filter((show) =>
+    show.legacyWatched && !hasWatched(show)
+  );
+  if (!oldWatched.length) {
+    toast("לא נמצאו סימוני צפייה ישנים שצריך לייבא.");
+    return;
+  }
+  if (!window.confirm("לייבא " + oldWatched.length +
+    " סימוני ״צפיתי״ שהיו משותפים לכולם לתוך החשבון האישי שלך?")) return;
+  elements.importOldWatched.disabled = true;
+  try {
+    const uid = viewerUser.uid;
+    const work = oldWatched.map((show) =>
+      set(ref(db, "userProgress/" + uid + "/" + show.id), {
+        watched: true,
+        updatedAt: serverTimestamp()
+      })
+    );
+    const results = await Promise.allSettled(work);
+    const successes = results.filter((result) => result.status === "fulfilled").length;
+    toast("יובאו " + successes + " סימוני צפייה לחשבון שלך.");
+    if (successes < results.length) {
+      toast("חלק מהסימונים לא נשמרו. בדוק את כללי Firebase.", true);
+    }
+  } finally {
+    elements.importOldWatched.disabled = false;
+  }
+}
+
 function updateStats() {
   const watched = shows.filter(hasWatched).length;
   elements.total.textContent = String(shows.length);
@@ -371,6 +519,28 @@ function openEditModal(show) {
 function closeModal() {
   if (!elements.submit.disabled) elements.modal.close();
 }
+
+elements.accountButton.addEventListener("click", () => {
+  if (viewerUser) elements.accountDialog.showModal();
+});
+elements.closeAccount.addEventListener("click", () => elements.accountDialog.close());
+elements.accountDialog.addEventListener("click", (event) => {
+  if (event.target === elements.accountDialog) elements.accountDialog.close();
+});
+elements.googleLogin.addEventListener("click", () => void logInWithGoogle());
+elements.renameProfile.addEventListener("click", () => void renameMyProfile());
+elements.importOldWatched.addEventListener("click", () => void importOldWatched());
+elements.logoutAccount.addEventListener("click", async () => {
+  if (!auth) return;
+  try {
+    await signOut(auth);
+    elements.accountDialog.close();
+    toast("התנתקת. חזרת למצב אורח.");
+  } catch (error) {
+    console.error("Sign-out failed:", error);
+    toast("ההתנתקות לא הצליחה.", true);
+  }
+});
 
 elements.open.addEventListener("click", openModal);
 elements.close.addEventListener("click", closeModal);
