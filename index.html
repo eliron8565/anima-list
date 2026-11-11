@@ -59,6 +59,12 @@
         </div>
         <span id="resultCount" class="result-count">0 כותרים</span>
       </div>
+      <div class="category-tabs" role="group" aria-label="סוגי תכנים">
+        <button type="button" class="category-tab active" data-category="all" aria-pressed="true"><i class="fa-solid fa-layer-group" aria-hidden="true"></i> הכול <span id="allCategoryCount">0</span></button>
+        <button type="button" class="category-tab" data-category="anime" aria-pressed="false"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i> אנימה <span id="animeCategoryCount">0</span></button>
+        <button type="button" class="category-tab" data-category="series" aria-pressed="false"><i class="fa-solid fa-tv" aria-hidden="true"></i> סדרות <span id="seriesCategoryCount">0</span></button>
+        <button type="button" class="category-tab" data-category="unsorted" aria-pressed="false"><i class="fa-solid fa-tags" aria-hidden="true"></i> לא סווגו <span id="unsortedCategoryCount">0</span></button>
+      </div>
       <div class="toolbar">
         <label class="search-box" for="searchInput">
           <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
@@ -89,11 +95,17 @@
       <form id="addForm">
         <label for="titleInput">שם האנימה / הסדרה <span class="required">*</span></label>
         <div class="input-wrap"><i class="fa-solid fa-film" aria-hidden="true"></i><input id="titleInput" name="title" type="text" maxlength="100" placeholder="למשל: Attack on Titan" required></div>
+        <label for="categoryInput">סוג התוכן <span class="required">*</span></label>
+        <div class="input-wrap"><i class="fa-solid fa-layer-group" aria-hidden="true"></i><select id="categoryInput" name="category" required>
+          <option value="" disabled selected>בחר אנימה או סדרה</option>
+          <option value="anime">אנימה</option>
+          <option value="series">סדרה</option>
+        </select></div>
         <label for="posterInput">קישור ישיר לפוסטר <span class="mini-label">(לא חובה)</span></label>
         <div class="input-wrap"><i class="fa-regular fa-image" aria-hidden="true"></i><input id="posterInput" name="posterUrl" type="url" maxlength="2048" inputmode="url" dir="ltr" placeholder="ריק = חיפוש פוסטר אוטומטי"></div>
         <label for="watchInput">קישור לצפייה <span class="mini-label">(לא חובה)</span></label>
         <div class="input-wrap"><i class="fa-solid fa-link" aria-hidden="true"></i><input id="watchInput" name="watchUrl" type="url" maxlength="2048" inputmode="url" dir="ltr" placeholder="https://example.com/watch (לא חובה)"></div>
-        <p class="form-hint"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i> בלי תמונה? נחפש פוסטר לפי השם. תוצאות מדויקות יותר עם השם באנגלית; אם לא נמצא, יופיע עיצוב חלופי. קישורים חייבים להתחיל ב־HTTPS.</p>
+        <p class="form-hint"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i> בלי תמונה? נחפש פוסטר לפי השם וסוג התוכן. אפשר גם לסווג מחדש כותרים ישנים בכל כרטיס. קישורים חייבים להתחיל ב־HTTPS.</p>
         <div class="dialog-actions"><button id="cancelModal" class="btn btn-ghost" type="button">ביטול</button><button id="submitAdd" class="btn btn-primary" type="submit"><i class="fa-solid fa-plus" aria-hidden="true"></i> הוסף לספרייה</button></div>
       </form>
     </div>
