@@ -210,7 +210,7 @@ function createCard(show) {
   }
   categorySelect.value = show.category;
   categorySelect.addEventListener("change", () =>
-    patchShow(show.id, { category: categorySelect.value })
+    patchShow(show.id, { category: categorySelect.value, metadataChecked: false })
   );
   categoryRow.append(categorySelect);
   const ratingRow = el("div", "rating-row");
@@ -352,109 +352,152 @@ document.querySelectorAll("[data-filter]").forEach((button) => {
 elements.form.addEventListener("submit", async (event) => {
   event.preventDefault();
   if (!db || !elements.form.reportValidity()) return;
-
   const title = $("#titleInput").value.trim();
-  const category = $("#categoryInput").value;
+  const category = elements.categoryInput.value;
   const rawPosterUrl = $("#posterInput").value.trim();
   const posterUrl = rawPosterUrl ? httpsUrl(rawPosterUrl) : null;
   const rawWatchUrl = $("#watchInput").value.trim();
   const watchUrl = rawWatchUrl ? httpsUrl(rawWatchUrl) : null;
+  const saveId = editingId;
   if (!title || title.length > 100 ||
-      !(editingId ? ["anime", "series", "unsorted"] : ["anime", "series"]).includes(category) ||
+      !(saveId ? ["anime", "series", "unsorted"] : ["anime", "series"]).includes(category) ||
       (rawPosterUrl && (!posterUrl || posterUrl.length > 2048)) ||
       (rawWatchUrl && (!watchUrl || watchUrl.length > 2048))) {
-    toast("יש להזין שם וקישורי HTTPS תקינים אם הוזנו.", true);
+    toast("יש להזין שם וסוג תוכן, וקישורי HTTPS תקינים אם הוזנו.", true);
     return;
   }
 
   elements.submit.disabled = true;
+  let success = false;
   try {
-    // Manual URL always wins; search only when the poster field is blank.
-    let autoPosterUrl = null;
-    if (!posterUrl) {
-      elements.submit.textContent = "מחפש פוסטר אוטומטית...";
-      autoPosterUrl = await findPosterByTitle(title, category);
+    if (saveId) {
+      setSubmitLabel("שומר שינויים...", "fa-solid fa-circle-notch fa-spin");
+      // A transaction preserves rating, watched and other changes made by
+      // another visitor while this person edits the form.
+      const result = await runTransaction(ref(db, "shows/" + saveId), (current) => {
+        if (!current) return;
+        const titleChanged = current.title !== title;
+        const categoryChanged = current.category !== category;
+        const posterChanged = (current.posterUrl || "") !== (posterUrl || "");
+        const next = { ...current, title, category };
+        if (posterUrl) next.posterUrl = posterUrl;
+        else delete next.posterUrl;
+        if (watchUrl) next.watchUrl = watchUrl;
+        else delete next.watchUrl;
+        if (titleChanged) next.titleLocked = true; // Respect manual names.
+        if (titleChanged || categoryChanged || posterChanged) {
+          delete next.metadataChecked; // Recheck if catalog data may have changed.
+        }
+        return next;
+      }, { applyLocally: false });
+      if (!result.committed) throw new Error("הכותר כבר לא קיים");
+      toast("השינויים נשמרו בהצלחה!");
+    } else {
+      setSubmitLabel("מחפש שם רשמי ופוסטר...", "fa-solid fa-circle-notch fa-spin");
+      // A manual image URL wins; catalog matching may still normalize the name.
+      const match = await findPosterMatchByTitle(title, category);
+      const officialTitle = match?.officialTitle || title;
+      setSubmitLabel("שומר בספרייה...", "fa-solid fa-circle-notch fa-spin");
+      const newShow = push(ref(db, "shows"));
+      attemptedMetadata.add(newShow.key);
+      await set(newShow, {
+        title: officialTitle,
+        category,
+        ...((posterUrl || match?.posterUrl) ? { posterUrl: posterUrl || match.posterUrl } : {}),
+        ...(watchUrl ? { watchUrl } : {}),
+        ...(match ? { metadataChecked: true } : {}),
+        rating: 0,
+        watched: false,
+        createdAt: serverTimestamp()
+      });
+      toast(match?.officialTitle && match.officialTitle !== title ?
+        "נוסף עם השם הרשמי: " + match.officialTitle :
+        "הסדרה נוספה לספרייה בהצלחה!");
     }
-    elements.submit.textContent = "שומר בספרייה...";
-    const newShow = push(ref(db, "shows"));
-    await set(newShow, {
-      title,
-      category,
-      ...((posterUrl || autoPosterUrl) ? { posterUrl: posterUrl || autoPosterUrl } : {}),
-      ...(watchUrl ? { watchUrl } : {}),
-      rating: 0,
-      watched: false,
-      createdAt: serverTimestamp()
-    });
+    success = true;
     elements.modal.close();
     elements.form.reset();
-    toast(autoPosterUrl ? "הסדרה נוספה עם פוסטר שנמצא אוטומטית!" :
-      (!posterUrl ? "הסדרה נוספה. לא נמצאה תמונה מתאימה, ולכן מוצג עיצוב חלופי." :
-      "הסדרה נוספה לכולם בהצלחה!"));
+    editingId = null;
   } catch (error) {
-    console.error("Failed to add show:", error);
-    toast("לא הצלחנו להוסיף את הסדרה. בדקו הרשאות וחיבור.", true);
+    console.error("Failed to save show:", error);
+    toast("לא הצלחנו לשמור. בדקו חיבור והרשאות Firebase.", true);
   } finally {
     elements.submit.disabled = false;
-    elements.submit.replaceChildren(icon("fa-solid fa-plus"), document.createTextNode(" הוסף לספרייה"));
+    setSubmitLabel(success || !editingId ? "הוסף לספרייה" : "שמור שינויים",
+      success || !editingId ? "fa-solid fa-plus" : "fa-solid fa-check");
   }
 });
 
 /**
- * Runs when the site is open: old entries without posters get a best-effort
- * lookup. Failed lookups remain placeholders; the user may retry manually.
- * A transaction avoids overwriting another visitor's changes.
+ * Existing shows are enriched on the first visit after an upgrade.
+ * Confident matches can update both their official title and missing poster.
+ * Transactions preserve user edits and changes made by other visitors.
  */
-async function fillMissingPoster(show, notify = false) {
-  if (lookingUpPosters.has(show.id)) return;
-  lookingUpPosters.add(show.id);
+async function enrichShow(show, notify = false) {
+  if (lookingUpMetadata.has(show.id)) return;
+  lookingUpMetadata.add(show.id);
   if (notify) render();
   try {
     const found = await findPosterMatchByTitle(show.title, show.category);
     if (!found) {
-      if (notify) toast("לא נמצא פוסטר עם התאמה טובה. אפשר לנסות שוב מאוחר יותר.");
+      if (notify) toast("לא מצאנו התאמה בטוחה במאגרי הסדרות. אפשר לערוך ידנית.");
       return;
     }
     const result = await runTransaction(ref(db, "shows/" + show.id), (current) => {
-      if (!current || httpsUrl(current.posterUrl)) return; // Keep manually set posters.
-      const update = { ...current, posterUrl: found.posterUrl };
-      if ((!current.category || current.category === "unsorted") && found.category) {
-        update.category = found.category;
+      if (!current || current.title !== show.title ||
+          (current.category || "unsorted") !== show.category) return;
+      const next = { ...current };
+      let changed = false;
+      if (!httpsUrl(current.posterUrl) && found.posterUrl) {
+        next.posterUrl = found.posterUrl;
+        changed = true;
       }
-      return update;
+      if (!current.titleLocked && found.officialTitle &&
+          found.officialTitle !== current.title) {
+        next.title = found.officialTitle;
+        changed = true;
+      }
+      if ((!current.category || current.category === "unsorted") && found.category) {
+        next.category = found.category;
+        changed = true;
+      }
+      if (current.metadataChecked !== true) {
+        next.metadataChecked = true;
+        changed = true;
+      }
+      return changed ? next : undefined;
     }, { applyLocally: false });
-    if (notify) toast(result.committed ?
-      "נמצאה תמונה ונשמרה בספרייה!" :
-      "כבר עודכנה תמונה לסדרה הזאת.");
+    if (notify) toast(result.committed ? "הפרטים עודכנו לפי המאגר!" :
+      "לא היה צורך לשנות את הפרטים.");
   } catch (error) {
-    console.warn("Poster lookup/update failed for", show.title, error);
-    if (notify) toast("חיפוש הפוסטר נכשל. אפשר לנסות שוב.", true);
+    console.warn("Catalog update failed for", show.title, error);
+    if (notify) toast("לא הצלחנו לחפש כרגע. אפשר לנסות שוב.", true);
   } finally {
-    lookingUpPosters.delete(show.id);
+    lookingUpMetadata.delete(show.id);
     if (notify) render();
   }
 }
 
-async function backfillMissingPosters() {
+async function backfillMetadata() {
   if (backfillRunning) return;
   backfillRunning = true;
   let attempted = 0;
   try {
     while (true) {
       const pending = shows.filter((show) =>
-        !httpsUrl(show.posterUrl) &&
-        !attemptedPosters.has(show.id) &&
-        !lookingUpPosters.has(show.id)
+        !show.metadataChecked &&
+        !attemptedMetadata.has(show.id) &&
+        !lookingUpMetadata.has(show.id)
       );
       if (!pending.length) break;
       elements.posterSync.hidden = false;
-      elements.posterSync.textContent = "מחפש פוסטרים לכותרות ישנות... (" +
+      elements.posterSync.textContent = "בודק שמות רשמיים ותמונות לכותרות הישנות... (" +
         (attempted + 1) + " מתוך " + (attempted + pending.length) + ")";
       const next = pending[0];
-      attemptedPosters.add(next.id);
-      await fillMissingPoster(next);
+      attemptedMetadata.add(next.id);
+      await enrichShow(next);
       attempted += 1;
-      // Be considerate of external services' request rates.
+      // Keep public APIs responsive for other users.
       await new Promise((resolve) => setTimeout(resolve, 850));
     }
   } finally {
@@ -476,15 +519,16 @@ function loadShows() {
           posterUrl: value.posterUrl || "",
           watchUrl: value.watchUrl || "",
           category: ["anime", "series"].includes(value.category) ? value.category : "unsorted",
+          metadataChecked: value.metadataChecked === true,
+          titleLocked: value.titleLocked === true,
           watched: value.watched === true,
           rating: Number.isInteger(value.rating) && value.rating >= 0 && value.rating <= 5 ? value.rating : 0,
           createdAt: Number(value.createdAt) || 0
         }))
         .sort((a, b) => b.createdAt - a.createdAt || a.title.localeCompare(b.title, "he"));
       render();
-      // Only try automatically for records missing posters, including older ones.
-      // A successful lookup is written to Firebase for everyone.
-      void backfillMissingPosters();
+      // Backfill official catalog names and missing posters for older entries.
+      void backfillMetadata();
     },
     (error) => {
       console.error("Realtime listener failed:", error);
