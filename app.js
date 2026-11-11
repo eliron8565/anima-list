@@ -767,7 +767,7 @@ function loadShows() {
           category: ["anime", "series"].includes(value.category) ? value.category : "unsorted",
           metadataChecked: value.metadataChecked === true,
           titleLocked: value.titleLocked === true,
-          watched: value.watched === true,
+          legacyWatched: value.watched === true,
           rating: Number.isInteger(value.rating) && value.rating >= 0 && value.rating <= 5 ? value.rating : 0,
           createdAt: Number(value.createdAt) || 0
         }))
@@ -801,16 +801,37 @@ async function start() {
   try {
     const app = initializeApp(firebaseConfig);
     db = getDatabase(app);
-    const auth = getAuth(app);
+    auth = getAuth(app);
 
     onValue(ref(db, ".info/connected"), (snapshot) => {
       setStatus(snapshot.val() === true ? "מחובר בזמן אמת" : "ממתין לרשת",
         snapshot.val() === true ? "online" : "");
     });
 
-    await signInAnonymously(auth);
-    elements.open.disabled = false;
-    loadShows();
+    onAuthStateChanged(auth, (user) => {
+      listenToUserData(user);
+      if (!user) {
+        elements.open.disabled = true;
+        // Guests can still add recommendations and use this browser's progress.
+        if (!loginPending) {
+          signInAnonymously(auth).catch((error) => {
+            console.error("Anonymous sign-in failed:", error);
+            setStatus("שגיאת התחברות", "error");
+            toast("צריך להפעיל Anonymous Authentication ב-Firebase.", true);
+          });
+        }
+        return;
+      }
+      elements.open.disabled = false;
+      if (!showsListening) {
+        showsListening = true;
+        loadShows();
+      }
+    }, (error) => {
+      console.error("Auth state unavailable:", error);
+      setStatus("שגיאת התחברות", "error");
+      toast("Firebase Authentication אינו זמין.", true);
+    });
   } catch (error) {
     console.error("Firebase initialization/sign-in failed:", error);
     setStatus("שגיאת התחברות", "error");
