@@ -61,6 +61,14 @@ a { color: inherit; text-decoration: none; }
 .account-controls { display: grid; grid-template-columns: 1fr; gap: 9px; }
 .account-controls .btn { justify-content: center; width: 100%; }
 .account-privacy { line-height: 1.6; margin: 19px 0 0; }
+.name-form { display: flex; flex-direction: column; margin-top: 19px; gap: 8px; }
+.name-form label { font-size: 13px; font-weight: 700; color: #e7e4fc; }
+.name-form .input-wrap { margin: 0; }
+.name-form .input-wrap input { font-size: 16px; }
+.name-form .btn { width: 100%; margin-top: 4px; }
+.account-warning { margin: 4px 0 15px; padding: 11px 13px; border-radius: 11px; background: rgba(255,196,106,.08); border: 1px solid rgba(255,196,106,.22); color: #f1d5a8; font-size: 12px; line-height: 1.75; }
+.account-warning i { margin-left: 7px; }
+.account-profile { margin-top: 10px; }
 
 .hero { padding: 76px 0 65px; border-bottom: 1px solid var(--line); }
 .eyebrow { color: #a98cff; font-size: 12px; font-weight: 800; letter-spacing: 1.6px; margin: 0 0 15px; }
