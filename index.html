@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0B0F19">
+  <meta name="description" content="WatchVault — רשימת האנימה והסדרות המשותפת שלך, עם דירוגים ומעקב צפייה בזמן אמת.">
+  <title>WatchVault | אנימה וסדרות</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css">
+  <script type="module" src="./app.js"></script>
+</head>
+<body>
+  <div class="ambient ambient-one" aria-hidden="true"></div>
+  <div class="ambient ambient-two" aria-hidden="true"></div>
+
+  <header class="site-header glass">
+    <div class="container header-inner">
+      <a class="brand" href="./" aria-label="WatchVault — עמוד הבית">
+        <span class="brand-mark"><i class="fa-solid fa-play" aria-hidden="true"></i></span>
+        <span>Watch<span class="accent-text">Vault</span><small>אנימה וסדרות</small></span>
+      </a>
+      <div class="header-actions">
+        <span id="connectionBadge" class="connection" role="status"><span class="status-dot"></span><span id="connectionText">מתחבר...</span></span>
+        <button id="openModal" class="btn btn-primary" type="button" disabled>
+          <i class="fa-solid fa-plus" aria-hidden="true"></i><span>הוסף חדש</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="hero" aria-labelledby="heroTitle">
+      <p class="eyebrow"><i class="fa-solid fa-sparkles" aria-hidden="true"></i> הספרייה המשותפת שלך</p>
+      <h1 id="heroTitle">כל הסיפורים שלך.<br><span class="gradient-text">במקום אחד.</span></h1>
+      <p class="hero-subtitle">שומרים סדרות, מדרגים את האהובות ומסמנים מה כבר ראינו — יחד, בזמן אמת.</p>
+      <div class="stats" aria-label="נתוני הספרייה">
+        <div class="stat"><strong id="totalCount">0</strong><span>כותרים</span></div>
+        <span class="stat-divider" aria-hidden="true"></span>
+        <div class="stat"><strong id="watchedCount">0</strong><span>נצפו</span></div>
+        <span class="stat-divider" aria-hidden="true"></span>
+        <div class="stat"><strong id="unwatchedCount">0</strong><span>מחכים לצפייה</span></div>
+      </div>
+    </section>
+
+    <section id="setupBanner" class="notice" role="alert" hidden>
+      <i class="fa-solid fa-circle-info" aria-hidden="true"></i>
+      <div><strong>נדרש חיבור ל-Firebase</strong><p>כדי להפעיל את הספרייה המשותפת, יש להדביק את פרטי הפרויקט בקובץ <code>firebase-config.js</code>, להפעיל Anonymous Authentication ולהגדיר את כללי מסד הנתונים. ההסבר נמצא בקובץ README.md.</p></div>
+    </section>
+
+    <section class="library" aria-labelledby="libraryTitle">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow muted">THE COLLECTION</p>
+          <h2 id="libraryTitle">הספרייה שלנו <span class="heading-star">✦</span></h2>
+        </div>
+        <span id="resultCount" class="result-count">0 כותרים</span>
+      </div>
+      <div class="toolbar">
+        <label class="search-box" for="searchInput">
+          <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+          <input id="searchInput" type="search" placeholder="חיפוש אנימה או סדרה..." autocomplete="off">
+        </label>
+        <div class="filters" role="group" aria-label="סינון לפי מצב צפייה">
+          <button type="button" class="filter active" data-filter="all" aria-pressed="true">הכול</button>
+          <button type="button" class="filter" data-filter="unwatched" aria-pressed="false">לא צפיתי</button>
+          <button type="button" class="filter" data-filter="watched" aria-pressed="false">צפיתי</button>
+        </div>
+      </div>
+      <div id="cardsGrid" class="cards-grid" aria-live="polite">
+        <div class="empty-state"><i class="fa-solid fa-circle-notch fa-spin" aria-hidden="true"></i><h3>טוענים את הספרייה...</h3></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer container"><span class="brand-mini"><i class="fa-solid fa-play" aria-hidden="true"></i> WatchVault</span><span>הסיפור הבא כבר מחכה לך.</span></footer>
+
+  <dialog id="addDialog" class="add-dialog" aria-labelledby="dialogTitle">
+    <div class="dialog-inner">
+      <div class="dialog-head">
+        <div class="dialog-icon"><i class="fa-solid fa-clapperboard" aria-hidden="true"></i></div>
+        <button id="closeModal" type="button" class="icon-button dialog-close" aria-label="סגור"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+      </div>
+      <h2 id="dialogTitle">מוסיפים לספרייה</h2>
+      <p class="dialog-description">עוד סיפור מצוין להצטרף לאוסף שלנו.</p>
+      <form id="addForm">
+        <label for="titleInput">שם האנימה / הסדרה <span class="required">*</span></label>
+        <div class="input-wrap"><i class="fa-solid fa-film" aria-hidden="true"></i><input id="titleInput" name="title" type="text" maxlength="100" placeholder="למשל: Attack on Titan" required></div>
+        <label for="posterInput">קישור ישיר לפוסטר <span class="required">*</span></label>
+        <div class="input-wrap"><i class="fa-regular fa-image" aria-hidden="true"></i><input id="posterInput" name="posterUrl" type="url" maxlength="2048" inputmode="url" dir="ltr" placeholder="https://example.com/poster.jpg" required></div>
+        <label for="watchInput">קישור לצפייה <span class="required">*</span></label>
+        <div class="input-wrap"><i class="fa-solid fa-link" aria-hidden="true"></i><input id="watchInput" name="watchUrl" type="url" maxlength="2048" inputmode="url" dir="ltr" placeholder="https://example.com/watch" required></div>
+        <p class="form-hint"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i> יש להשתמש בקישורי HTTPS תקינים. התוכן משותף לכל המבקרים.</p>
+        <div class="dialog-actions"><button id="cancelModal" class="btn btn-ghost" type="button">ביטול</button><button id="submitAdd" class="btn btn-primary" type="submit"><i class="fa-solid fa-plus" aria-hidden="true"></i> הוסף לספרייה</button></div>
+      </form>
+    </div>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+</body>
+</html>
