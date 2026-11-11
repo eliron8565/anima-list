@@ -10,8 +10,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="./styles.css?v=mobile-width-5">
-  <script type="module" src="./app.js?v=mobile-width-5"></script>
+  <link rel="stylesheet" href="./styles.css?v=accounts-1">
+  <script type="module" src="./app.js?v=accounts-1"></script>
 </head>
 <body>
   <div class="ambient ambient-one" aria-hidden="true"></div>
@@ -25,6 +25,7 @@
       </a>
       <div class="header-actions">
         <span id="connectionBadge" class="connection" role="status"><span class="status-dot"></span><span id="connectionText">מתחבר...</span></span>
+        <button id="accountButton" class="account-button" type="button" disabled aria-label="החשבון שלי"><i class="fa-solid fa-user-circle" aria-hidden="true"></i><span id="accountName">אורח</span></button>
         <button id="openModal" class="btn btn-primary" type="button" disabled>
           <i class="fa-solid fa-plus" aria-hidden="true"></i><span>הוסף חדש</span>
         </button>
@@ -36,7 +37,7 @@
     <section class="hero" aria-labelledby="heroTitle">
       <p class="eyebrow"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i> הספרייה המשותפת שלך</p>
       <h1 id="heroTitle">כל הסיפורים שלך.<br><span class="gradient-text">במקום אחד.</span></h1>
-      <p class="hero-subtitle">שומרים סדרות, מדרגים את האהובות ומסמנים מה כבר ראינו — יחד, בזמן אמת.</p>
+      <p class="hero-subtitle">החברים ממליצים על סדרות ואנימות — וכל אחד מסמן לעצמו מה כבר ראה.</p>
       <div class="stats" aria-label="נתוני הספרייה">
         <div class="stat"><strong id="totalCount">0</strong><span>כותרים</span></div>
         <span class="stat-divider" aria-hidden="true"></span>
@@ -55,7 +56,7 @@
       <div class="section-heading">
         <div>
           <p class="eyebrow muted">THE COLLECTION</p>
-          <h2 id="libraryTitle">הספרייה שלנו <span class="heading-star">✦</span></h2>
+          <h2 id="libraryTitle">ההמלצות שלנו <span class="heading-star">✦</span></h2>
         </div>
         <span id="resultCount" class="result-count">0 כותרים</span>
       </div>
@@ -71,7 +72,7 @@
           <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
           <input id="searchInput" type="search" placeholder="חיפוש אנימה או סדרה..." autocomplete="off">
         </label>
-        <div class="filters" role="group" aria-label="סינון לפי מצב צפייה">
+        <div class="filters" role="group" aria-label="סינון לפי מצב הצפייה האישי שלי">
           <button type="button" class="filter active" data-filter="all" aria-pressed="true">הכול</button>
           <button type="button" class="filter" data-filter="unwatched" aria-pressed="false">לא צפיתי</button>
           <button type="button" class="filter" data-filter="watched" aria-pressed="false">צפיתי</button>
@@ -113,6 +114,28 @@
     </div>
   </dialog>
 
+  <dialog id="accountDialog" class="add-dialog account-dialog" aria-labelledby="accountDialogTitle">
+    <div class="dialog-inner">
+      <div class="dialog-head">
+        <div class="dialog-icon"><i class="fa-solid fa-user" aria-hidden="true"></i></div>
+        <button id="closeAccount" class="icon-button dialog-close" type="button" aria-label="סגור"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+      </div>
+      <h2 id="accountDialogTitle">החשבון שלי</h2>
+      <p id="accountDescription" class="dialog-description">המעקב האישי שלך</p>
+      <div class="account-profile">
+        <div class="account-avatar"><i class="fa-solid fa-user-astronaut" aria-hidden="true"></i></div>
+        <div class="account-identity"><strong id="profileName">אורח</strong><span id="profileMode">התקדמות בדפדפן הזה בלבד</span></div>
+      </div>
+      <p class="account-hint">למשל, תוכל להגדיר את שם התצוגה שלך ל־<strong>אלירון</strong>. כדי לראות את אותם סימוני צפייה בטלפון ובמחשב, התחבר לאותו חשבון Google בשני המכשירים.</p>
+      <div class="account-controls">
+        <button id="googleLogin" type="button" class="btn btn-primary"><i class="fa-brands fa-google" aria-hidden="true"></i> התחבר עם Google</button>
+        <button id="renameProfile" type="button" class="btn btn-ghost"><i class="fa-solid fa-pen" aria-hidden="true"></i> שינוי שם תצוגה</button>
+        <button id="importOldWatched" type="button" class="btn btn-ghost"><i class="fa-solid fa-file-import" aria-hidden="true"></i> ייבוא סימוני ״צפיתי״ הישנים</button>
+        <button id="logoutAccount" type="button" class="btn btn-ghost" hidden><i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i> התנתק מחשבון Google</button>
+      </div>
+      <p class="form-hint account-privacy"><i class="fa-solid fa-lock" aria-hidden="true"></i> סימוני הצפייה נשמרים בנפרד לכל משתמש. הספרייה וההמלצות עצמן משותפות לכל המבקרים.</p>
+    </div>
+  </dialog>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 </body>
 </html>
