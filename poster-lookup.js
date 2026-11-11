@@ -37,11 +37,21 @@ function validImage(value) {
 }
 
 function bestMatch(title, candidates) {
-  const matches = candidates.filter((x) => x.image)
-    .map((x) => ({ score: Math.max(...x.names.map((name) => titleScore(title, name))), image: x.image }))
+  const matches = candidates
+    .filter((x) => x.officialTitle)
+    .map((x) => ({
+      score: Math.max(0, ...x.names.map((name) => titleScore(title, name))),
+      image: x.image,
+      officialTitle: x.officialTitle
+    }))
     .filter((x) => x.score >= 81)
     .sort((a, b) => b.score - a.score);
-  return matches[0] || null;
+  if (!matches.length) return null;
+  // Catalogs sometimes contain different shows with identical names:
+  // don't silently pick a poster for an ambiguous result.
+  if (matches[1] && matches[0].score === matches[1].score &&
+      matches[0].officialTitle !== matches[1].officialTitle) return null;
+  return matches[0];
 }
 
 async function requestJson(url, options = {}) {
@@ -77,6 +87,7 @@ async function searchAniList(title) {
   });
   const candidates = (payload?.data?.Page?.media || []).map((item) => ({
     names: [item.title?.english, item.title?.romaji, item.title?.native, ...(item.synonyms || [])],
+    officialTitle: item.title?.english || item.title?.romaji || item.title?.native || "",
     image: validImage(item.coverImage?.extraLarge || item.coverImage?.large)
   }));
   const result = bestMatch(title, candidates);
@@ -89,6 +100,7 @@ async function searchTvMaze(title) {
   if (!Array.isArray(results)) return null;
   const candidates = results.map((entry) => ({
     names: [entry.show?.name],
+    officialTitle: entry.show?.name || "",
     image: validImage(entry.show?.image?.original || entry.show?.image?.medium)
   }));
   const result = bestMatch(title, candidates);
@@ -111,13 +123,14 @@ export async function findPosterMatchByTitle(title, category = "unsorted") {
     .map((attempt) => attempt.value)
     .sort((a, b) => b.score - a.score);
   if (!matches.length) return null;
-
   const [winner, second] = matches;
-  // Equal or near-equal results in two catalogs are ambiguous.
-  const confidentCategory = !second || winner.score - second.score >= 5;
+  // No automatic rename for an ambiguous cross-catalog match.
+  if (second && winner.score - second.score < 5) return null;
+  const officialTitle = String(winner.officialTitle || "").trim();
   return {
-    posterUrl: winner.image,
-    category: confidentCategory ? winner.category : null
+    posterUrl: winner.image || null,
+    officialTitle: officialTitle.length <= 100 ? officialTitle : null,
+    category: winner.category
   };
 }
 
