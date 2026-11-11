@@ -3,7 +3,10 @@
  * Paste your Firebase Web App config in firebase-config.js.
  */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+import {
+  getAuth, onAuthStateChanged, signInAnonymously,
+  GoogleAuthProvider, signInWithPopup, signOut
+} from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
 import {
   getDatabase, ref, onValue, push, set, update, remove, runTransaction, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
@@ -14,6 +17,17 @@ const $ = (selector) => document.querySelector(selector);
 const elements = {
   grid: $("#cardsGrid"),
   open: $("#openModal"),
+  accountButton: $("#accountButton"),
+  accountName: $("#accountName"),
+  accountDialog: $("#accountDialog"),
+  closeAccount: $("#closeAccount"),
+  accountDescription: $("#accountDescription"),
+  profileName: $("#profileName"),
+  profileMode: $("#profileMode"),
+  googleLogin: $("#googleLogin"),
+  renameProfile: $("#renameProfile"),
+  importOldWatched: $("#importOldWatched"),
+  logoutAccount: $("#logoutAccount"),
   modal: $("#addDialog"),
   close: $("#closeModal"),
   cancel: $("#cancelModal"),
@@ -42,6 +56,14 @@ const elements = {
 };
 
 let db;
+let auth;
+let viewerUser = null;
+let profileName = "אורח";
+let personalProgress = {};
+let stopProgressListening = null;
+let stopProfileListening = null;
+let showsListening = false;
+let loginPending = false;
 let shows = [];
 let currentFilter = "all";
 let currentCategory = "all";
@@ -98,8 +120,12 @@ function emptyMessage(iconClass, title, description) {
   elements.grid.replaceChildren(box);
 }
 
+function hasWatched(show) {
+  return personalProgress[show.id]?.watched === true;
+}
+
 function updateStats() {
-  const watched = shows.filter((show) => show.watched).length;
+  const watched = shows.filter(hasWatched).length;
   elements.total.textContent = String(shows.length);
   elements.watched.textContent = String(watched);
   elements.unwatched.textContent = String(shows.length - watched);
@@ -114,8 +140,8 @@ function render() {
   updateStats();
   const filtered = shows.filter((show) => {
     const byStatus = currentFilter === "all" ||
-      (currentFilter === "watched" && show.watched) ||
-      (currentFilter === "unwatched" && !show.watched);
+      (currentFilter === "watched" && hasWatched(show)) ||
+      (currentFilter === "unwatched" && !hasWatched(show));
     const byName = show.title.toLocaleLowerCase("he").includes(currentSearch);
     const byCategory = currentCategory === "all" || show.category === currentCategory;
     return byStatus && byName && byCategory;
@@ -190,8 +216,8 @@ function createCard(show) {
     poster.append(retry);
   }
 
-  const badge = el("span", "poster-badge" + (show.watched ? " watched" : ""),
-    show.watched ? "✓ צפיתי" : "עוד לא צפיתי");
+  const badge = el("span", "poster-badge" + (hasWatched(show) ? " watched" : ""),
+    hasWatched(show) ? "✓ צפיתי" : "עוד לא צפיתי");
   const titleElement = el("h3", "poster-title", show.title);
   titleElement.setAttribute("dir", "auto");
   poster.append(badge, titleElement);
@@ -266,14 +292,14 @@ function createCard(show) {
   toggle.type = "button";
   toggle.setAttribute("role", "switch");
   toggle.setAttribute("aria-label", "סטטוס צפייה של " + show.title);
-  toggle.setAttribute("aria-checked", String(show.watched));
+  toggle.setAttribute("aria-checked", String(hasWatched(show)));
   const watchLabel = el("span", "watch-text");
   watchLabel.append(
-    icon(show.watched ? "fa-solid fa-circle-check" : "fa-regular fa-circle"),
-    document.createTextNode(show.watched ? "צפיתי" : "לא צפיתי")
+    icon(hasWatched(show) ? "fa-solid fa-circle-check" : "fa-regular fa-circle"),
+    document.createTextNode(hasWatched(show) ? "צפיתי" : "לא צפיתי")
   );
   toggle.append(watchLabel, el("span", "toggle-track"));
-  toggle.addEventListener("click", () => patchShow(show.id, { watched: !show.watched }));
+  toggle.addEventListener("click", () => void setPersonalWatched(show.id, !hasWatched(show)));
 
   const buttons = el("div", "card-buttons");
   const watchUrl = httpsUrl(show.watchUrl);
