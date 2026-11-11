@@ -8,7 +8,7 @@ import {
   getDatabase, ref, onValue, push, set, update, remove, runTransaction, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
 import { firebaseConfig } from "./firebase-config.js";
-import { findPosterMatchByTitle } from "./poster-lookup.js";
+import { findPosterMatchByTitle } from "./poster-lookup.js?v=official-title-1";
 
 const $ = (selector) => document.querySelector(selector);
 const elements = {
