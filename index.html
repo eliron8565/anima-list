@@ -92,13 +92,14 @@
         <button id="closeModal" type="button" class="icon-button dialog-close" aria-label="סגור"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
       </div>
       <h2 id="dialogTitle">מוסיפים לספרייה</h2>
-      <p class="dialog-description">עוד סיפור מצוין להצטרף לאוסף שלנו.</p>
+      <p id="dialogDescription" class="dialog-description">עוד סיפור מצוין להצטרף לאוסף שלנו.</p>
       <form id="addForm">
         <label for="titleInput">שם האנימה / הסדרה <span class="required">*</span></label>
         <div class="input-wrap"><i class="fa-solid fa-film" aria-hidden="true"></i><input id="titleInput" name="title" type="text" maxlength="100" placeholder="למשל: Attack on Titan" required></div>
         <label for="categoryInput">סוג התוכן <span class="required">*</span></label>
         <div class="input-wrap"><i class="fa-solid fa-layer-group" aria-hidden="true"></i><select id="categoryInput" name="category" required>
           <option value="" disabled selected>בחר אנימה או סדרה</option>
+          <option id="unsortedOption" value="unsorted" hidden>לא סווג</option>
           <option value="anime">אנימה</option>
           <option value="series">סדרה</option>
         </select></div>
@@ -106,7 +107,7 @@
         <div class="input-wrap"><i class="fa-regular fa-image" aria-hidden="true"></i><input id="posterInput" name="posterUrl" type="url" maxlength="2048" inputmode="url" dir="ltr" placeholder="ריק = חיפוש פוסטר אוטומטי"></div>
         <label for="watchInput">קישור לצפייה <span class="mini-label">(לא חובה)</span></label>
         <div class="input-wrap"><i class="fa-solid fa-link" aria-hidden="true"></i><input id="watchInput" name="watchUrl" type="url" maxlength="2048" inputmode="url" dir="ltr" placeholder="https://example.com/watch (לא חובה)"></div>
-        <p class="form-hint"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i> בלי תמונה? נחפש פוסטר לפי השם וסוג התוכן. אפשר גם לסווג מחדש כותרים ישנים בכל כרטיס. קישורים חייבים להתחיל ב־HTTPS.</p>
+        <p class="form-hint"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i> האתר ינסה למצוא שם רשמי ופוסטר לפי השם וסוג התוכן. אפשר לערוך כל פרט לאחר השמירה. קישורים שמוזנים חייבים להתחיל ב־HTTPS.</p>
         <div class="dialog-actions"><button id="cancelModal" class="btn btn-ghost" type="button">ביטול</button><button id="submitAdd" class="btn btn-primary" type="submit"><i class="fa-solid fa-plus" aria-hidden="true"></i> הוסף לספרייה</button></div>
       </form>
     </div>
