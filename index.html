@@ -76,7 +76,7 @@
     </section>
   </main>
 
-  <footer class="footer container"><span class="brand-mini"><i class="fa-solid fa-play" aria-hidden="true"></i> WatchVault</span><span>הסיפור הבא כבר מחכה לך.</span></footer>
+  <footer class="footer container"><span class="brand-mini"><i class="fa-solid fa-play" aria-hidden="true"></i> WatchVault</span><span>הסיפור הבא כבר מחכה לך.</span><span>חיפוש פוסטרים: <a href="https://anilist.co/" target="_blank" rel="noopener noreferrer">AniList</a> · <a href="https://www.tvmaze.com/" target="_blank" rel="noopener noreferrer">TVmaze</a></span></footer>
 
   <dialog id="addDialog" class="add-dialog" aria-labelledby="dialogTitle">
     <div class="dialog-inner">
@@ -90,10 +90,10 @@
         <label for="titleInput">שם האנימה / הסדרה <span class="required">*</span></label>
         <div class="input-wrap"><i class="fa-solid fa-film" aria-hidden="true"></i><input id="titleInput" name="title" type="text" maxlength="100" placeholder="למשל: Attack on Titan" required></div>
         <label for="posterInput">קישור ישיר לפוסטר <span class="mini-label">(לא חובה)</span></label>
-        <div class="input-wrap"><i class="fa-regular fa-image" aria-hidden="true"></i><input id="posterInput" name="posterUrl" type="url" maxlength="2048" inputmode="url" dir="ltr" placeholder="https://example.com/poster.jpg (לא חובה)"></div>
+        <div class="input-wrap"><i class="fa-regular fa-image" aria-hidden="true"></i><input id="posterInput" name="posterUrl" type="url" maxlength="2048" inputmode="url" dir="ltr" placeholder="ריק = חיפוש פוסטר אוטומטי"></div>
         <label for="watchInput">קישור לצפייה <span class="mini-label">(לא חובה)</span></label>
         <div class="input-wrap"><i class="fa-solid fa-link" aria-hidden="true"></i><input id="watchInput" name="watchUrl" type="url" maxlength="2048" inputmode="url" dir="ltr" placeholder="https://example.com/watch (לא חובה)"></div>
-        <p class="form-hint"><i class="fa-solid fa-shield-halved" aria-hidden="true"></i> אם מוסיפים קישורים, הם חייבים להתחיל ב־HTTPS. התוכן משותף לכל המבקרים.</p>
+        <p class="form-hint"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i> בלי תמונה? נחפש פוסטר לפי השם. תוצאות מדויקות יותר עם השם באנגלית; אם לא נמצא, יופיע עיצוב חלופי. קישורים חייבים להתחיל ב־HTTPS.</p>
         <div class="dialog-actions"><button id="cancelModal" class="btn btn-ghost" type="button">ביטול</button><button id="submitAdd" class="btn btn-primary" type="submit"><i class="fa-solid fa-plus" aria-hidden="true"></i> הוסף לספרייה</button></div>
       </form>
     </div>
