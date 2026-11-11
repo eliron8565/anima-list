@@ -176,17 +176,17 @@ function createCard(show) {
   toggle.addEventListener("click", () => patchShow(show.id, { watched: !show.watched }));
 
   const buttons = el("div", "card-buttons");
-  const play = el("a", "play-link");
   const watchUrl = httpsUrl(show.watchUrl);
-  play.href = watchUrl || "#";
-  play.target = "_blank";
-  play.rel = "noopener noreferrer nofollow";
-  play.title = "לצפייה ב" + show.title;
-  play.setAttribute("aria-label", "צפה ב" + show.title + " בחלון חדש");
-  play.append(icon("fa-solid fa-play"));
-  if (!watchUrl) {
-    play.removeAttribute("href");
-    play.setAttribute("aria-disabled", "true");
+  // Display Play only when the series has a valid watch link.
+  if (watchUrl) {
+    const play = el("a", "play-link");
+    play.href = watchUrl;
+    play.target = "_blank";
+    play.rel = "noopener noreferrer nofollow";
+    play.title = "לצפייה ב" + show.title;
+    play.setAttribute("aria-label", "צפה ב" + show.title + " בחלון חדש");
+    play.append(icon("fa-solid fa-play"));
+    buttons.append(play);
   }
 
   const deleteButton = el("button", "icon-button delete");
@@ -196,7 +196,7 @@ function createCard(show) {
   deleteButton.append(icon("fa-regular fa-trash-can"));
   deleteButton.addEventListener("click", () => deleteShow(show));
 
-  buttons.append(play, deleteButton);
+  buttons.append(deleteButton);
   actions.append(toggle, buttons);
   body.append(ratingRow, actions);
   card.append(poster, body);
@@ -247,10 +247,11 @@ elements.form.addEventListener("submit", async (event) => {
 
   const title = $("#titleInput").value.trim();
   const posterUrl = httpsUrl($("#posterInput").value);
-  const watchUrl = httpsUrl($("#watchInput").value);
-  if (!title || title.length > 100 || !posterUrl || !watchUrl ||
-      posterUrl.length > 2048 || watchUrl.length > 2048) {
-    toast("יש להזין שם וקישורי HTTPS תקינים.", true);
+  const rawWatchUrl = $("#watchInput").value.trim();
+  const watchUrl = rawWatchUrl ? httpsUrl(rawWatchUrl) : null;
+  if (!title || title.length > 100 || !posterUrl ||
+      posterUrl.length > 2048 || (rawWatchUrl && (!watchUrl || watchUrl.length > 2048))) {
+    toast("יש להזין שם, קישור HTTPS לפוסטר וקישור צפייה תקין אם הוזן.", true);
     return;
   }
 
@@ -258,7 +259,8 @@ elements.form.addEventListener("submit", async (event) => {
   try {
     const newShow = push(ref(db, "shows"));
     await set(newShow, {
-      title, posterUrl, watchUrl,
+      title, posterUrl,
+      ...(watchUrl ? { watchUrl } : {}),
       rating: 0,
       watched: false,
       createdAt: serverTimestamp()
