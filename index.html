@@ -10,8 +10,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="./styles.css?v=mobile-edit-1">
-  <script type="module" src="./app.js?v=mobile-edit-1"></script>
+  <link rel="stylesheet" href="./styles.css?v=auto-category-2">
+  <script type="module" src="./app.js?v=auto-category-2"></script>
 </head>
 <body>
   <div class="ambient ambient-one" aria-hidden="true"></div>
@@ -96,18 +96,18 @@
       <form id="addForm">
         <label for="titleInput">שם האנימה / הסדרה <span class="required">*</span></label>
         <div class="input-wrap"><i class="fa-solid fa-film" aria-hidden="true"></i><input id="titleInput" name="title" type="text" maxlength="100" placeholder="למשל: Attack on Titan" required></div>
-        <label for="categoryInput">סוג התוכן <span class="required">*</span></label>
+        <label for="categoryInput">סוג התוכן <span class="mini-label">(אפשר זיהוי אוטומטי)</span></label>
         <div class="input-wrap"><i class="fa-solid fa-layer-group" aria-hidden="true"></i><select id="categoryInput" name="category" required>
-          <option value="" disabled selected>בחר אנימה או סדרה</option>
+          <option value="auto" selected>✨ זיהוי אוטומטי לפי השם</option>
           <option id="unsortedOption" value="unsorted" hidden>לא סווג</option>
           <option value="anime">אנימה</option>
-          <option value="series">סדרה</option>
+          <option value="series">סדרה רגילה</option>
         </select></div>
         <label for="posterInput">קישור ישיר לפוסטר <span class="mini-label">(לא חובה)</span></label>
         <div class="input-wrap"><i class="fa-regular fa-image" aria-hidden="true"></i><input id="posterInput" name="posterUrl" type="url" maxlength="2048" inputmode="url" dir="ltr" placeholder="ריק = חיפוש פוסטר אוטומטי"></div>
         <label for="watchInput">קישור לצפייה <span class="mini-label">(לא חובה)</span></label>
         <div class="input-wrap"><i class="fa-solid fa-link" aria-hidden="true"></i><input id="watchInput" name="watchUrl" type="url" maxlength="2048" inputmode="url" dir="ltr" placeholder="https://example.com/watch (לא חובה)"></div>
-        <p class="form-hint"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i> האתר ינסה למצוא שם רשמי ופוסטר לפי השם וסוג התוכן. אפשר לערוך כל פרט לאחר השמירה. קישורים שמוזנים חייבים להתחיל ב־HTTPS.</p>
+        <p class="form-hint"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i> האתר ינסה לזהות אוטומטית אם זו אנימה או סדרה, ולהוסיף שם רשמי ופוסטר. במקרה של ספק אפשר לבחור סוג ידנית. קישורים שמוזנים חייבים להתחיל ב־HTTPS.</p>
         <div class="dialog-actions"><button id="cancelModal" class="btn btn-ghost" type="button">ביטול</button><button id="submitAdd" class="btn btn-primary" type="submit"><i class="fa-solid fa-plus" aria-hidden="true"></i> הוסף לספרייה</button></div>
       </form>
     </div>
