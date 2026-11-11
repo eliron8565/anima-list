@@ -59,6 +59,26 @@ a { color: inherit; text-decoration: none; }
 .section-heading h2 { margin: 0; font-size: clamp(24px, 3vw, 32px); letter-spacing: -.5px; }
 .heading-star { font-size: 16px; color: #b67dff; vertical-align: middle; }
 .result-count { font-size: 13px; color: #9ca5bb; white-space: nowrap; }
+
+/* Browse anime and TV series separately, including legacy items. */
+.category-tabs { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 0 0 20px; }
+.category-tab { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; border: 1px solid #343a51; border-radius: 12px; background: #181e30; color: #b9c1d6; padding: 9px 16px; font-size: 13px; font-weight: 800; transition: .2s; }
+.category-tab i { color: #9f92db; }
+.category-tab > span { background: #2c324a; border-radius: 20px; padding: 1px 8px; color: #c8cce4; font-size: 11px; font-variant-numeric: tabular-nums; }
+.category-tab:hover { color: #fff; border-color: #7566bc; background: #262744; }
+.category-tab.active { background: linear-gradient(125deg, #55439f, #423779); border-color: #9384ec; color: #fff; box-shadow: 0 5px 20px #6048c32a; }
+.category-tab.active i, .category-tab.active > span { color: white; }
+.category-tab.active > span { background: #a7a0e94b; }
+.category-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
+.category-select { min-width: 0; max-width: 145px; height: 34px; border-radius: 9px; border: 1px solid #454767; background: #24273d; color: #ddd8ff; padding: 4px 9px; font-size: 12px; font-weight: 700; cursor: pointer; }
+.category-select:hover, .category-select:focus-visible { border-color: #a394ff; }
+.poster-retry { position: absolute; z-index: 4; bottom: 76px; right: 50%; transform: translateX(50%); display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-width: 118px; padding: 8px 11px; background: #282744df; backdrop-filter: blur(12px); border: 1px solid #8d78c899; border-radius: 10px; color: #eee9ff; font-weight: 700; font-size: 12px; white-space: nowrap; }
+.poster-retry:not(:disabled):hover { background: #574494ee; }
+.input-wrap select { display: block; width: 100%; min-height: 49px; border-radius: 11px; border: 1px solid #353a50; background: rgba(9,14,29,.75); color: #f7f4ff; padding: 10px 42px 10px 13px; appearance: none; outline: none; font-size: 13px; cursor: pointer; }
+.input-wrap select:focus { border-color: #9477fd; box-shadow: 0 0 0 3px #9477fd1c; }
+.input-wrap select:invalid { color: #9291a9; }
+.input-wrap select option { color: #fff; background: #1b2033; }
+
 .toolbar { display: flex; justify-content: space-between; align-items: center; gap: 16px; margin-bottom: 27px; }
 .search-box { display: flex; align-items: center; gap: 12px; color: #929ab0; background: #161c2d; border: 1px solid #2b3246; border-radius: 12px; padding: 0 15px; width: min(410px, 100%); min-height: 47px; transition: border-color .2s; }
 .search-box:focus-within { border-color: #8770ec; }
@@ -153,6 +173,10 @@ a { color: inherit; text-decoration: none; }
   .search-box { width: 100%; }
   .filters { align-self: flex-start; }
   .library { padding-top: 35px; }
+   .category-tabs { gap: 7px; }
+  .category-tab { padding: 8px 10px; font-size: 12px; min-height: 39px; }
+  .category-select { font-size: 11px; max-width: 110px; }
+  .poster-retry { bottom: 58px; min-width: 0; padding: 7px 9px; font-size: 10px; }
   .cards-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 13px; }
   .card { border-radius: 13px; }
   .poster-title { font-size: 15px; bottom: 13px; inset-inline: 10px; }
