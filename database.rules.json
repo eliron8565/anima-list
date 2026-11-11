@@ -6,7 +6,7 @@
       ".read": true,
       "$showId": {
         ".write": "auth != null",
-        ".validate": "newData.hasChildren(['title', 'posterUrl', 'rating', 'watched', 'createdAt']) && (!data.exists() || newData.child('createdAt').val() === data.child('createdAt').val())",
+        ".validate": "newData.hasChildren(['title', 'rating', 'watched', 'createdAt']) && (!data.exists() || newData.child('createdAt').val() === data.child('createdAt').val())",
         "title": {
           ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 100"
         },
