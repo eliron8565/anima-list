@@ -1,16 +1,21 @@
 /**
- * FIREBASE CONFIG — להדביק כאן את אובייקט firebaseConfig
- * מתוך Firebase Console > Project settings > Your apps > Web app > Config.
+ * WatchVault — Firebase Web App configuration
  *
- * חשוב: יש לכלול databaseURL מ-Realtime Database > Data.
- * קובץ זה גלוי לציבור ב-GitHub Pages; האבטחה מתבצעת באמצעות Database Rules.
+ * The Firebase web app's settings supplied by the project owner.
+ * Still needed: set databaseURL to the exact URL from
+ * Firebase Console > Build > Realtime Database > Data.
+ *
+ * This is a client-side configuration file, NOT a service-account key.
+ * Access to data must be enforced by Realtime Database rules.
  */
 export const firebaseConfig = {
-  apiKey: "PASTE_API_KEY_HERE",
-  authDomain: "PASTE_PROJECT_ID_HERE.firebaseapp.com",
+  apiKey: "AIzaSyC4Sm5Y2SIXdZw-dOWoFSuEVxwK2-pY7xQ",
+  authDomain: "anima-list-8778f.firebaseapp.com",
+  // TODO: Paste the exact URL of your Realtime Database here:
   databaseURL: "https://PASTE_DATABASE_URL_HERE",
-  projectId: "PASTE_PROJECT_ID_HERE",
-  storageBucket: "PASTE_PROJECT_ID_HERE.firebasestorage.app",
-  messagingSenderId: "PASTE_SENDER_ID_HERE",
-  appId: "PASTE_APP_ID_HERE"
+  projectId: "anima-list-8778f",
+  storageBucket: "anima-list-8778f.firebasestorage.app",
+  messagingSenderId: "148164530109",
+  appId: "1:148164530109:web:1087f40e94be4c3e850cd4",
+  measurementId: "G-ZNVJHWWCEP"
 };
