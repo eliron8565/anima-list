@@ -120,6 +120,7 @@ a { color: inherit; text-decoration: none; }
 .icon-button { border: 1px solid #ffffff18; background: #23283a; color: #bbc4da; border-radius: 10px; width: 34px; height: 34px; padding: 0; display: grid; place-items: center; transition: .2s; }
 .icon-button:hover { background: #343a53; color: white; }
 .icon-button.delete:hover { color: #ff96ac; border-color: #ff63835e; background: #5a293a; }
+.icon-button.edit:hover { color: #d5c3ff; border-color: #9c83ff88; background: #463669; }
 .play-link { width: 34px; height: 34px; display: grid; place-items: center; background: linear-gradient(135deg, #795af3, #9f61ef); color: white; border-radius: 10px; transition: .2s; }
 .play-link:hover { filter: brightness(1.18); transform: translateY(-2px); }
 .empty-state { grid-column: 1 / -1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 70px 18px; border: 1px dashed #353a54; background: rgba(19,24,42,.58); border-radius: 18px; color: #a99cf7; }
@@ -192,11 +193,53 @@ a { color: inherit; text-decoration: none; }
   .dialog-inner { padding: 23px 18px; }
   .toast { bottom: 16px; left: 16px; }
 }
+@media (max-width: 560px) {
+  /* Compact, readable one-column media rows on phones. */
+  .container { width: calc(100% - 24px); }
+  .site-header .header-inner { gap: 10px; }
+  .brand { font-size: 19px; min-width: 0; }
+  .brand-mark { flex: none; }
+  .hero { padding-block: 43px 32px; }
+  .hero h1 { font-size: clamp(35px, 10vw, 49px); line-height: 1.25; }
+  .hero-subtitle { font-size: 14px; }
+  .stats { justify-content: space-between; gap: 10px; }
+  .stat strong { font-size: 22px; }
+  .section-heading { align-items: center; }
+  .category-tabs { flex-wrap: nowrap; overflow-x: auto; padding: 2px 0 10px; margin-bottom: 12px; scrollbar-width: none; scroll-snap-type: x proximity; }
+  .category-tabs::-webkit-scrollbar { display: none; }
+  .category-tab { flex: 0 0 auto; scroll-snap-align: start; }
+  .filters { width: 100%; overflow-x: auto; }
+  .filter { flex: 1; min-width: 70px; padding: 9px 10px; }
+  .cards-grid { grid-template-columns: minmax(0, 1fr); gap: 13px; }
+  .card { display: grid; grid-template-columns: minmax(0, 42%) minmax(0, 58%); width: 100%; max-width: none; min-width: 0; border-radius: 14px; }
+  .card:hover { transform: none; }
+  .poster { aspect-ratio: 2 / 3; height: 100%; min-height: 220px; }
+  .poster-title { font-size: clamp(13px, 3.6vw, 17px); bottom: 15px; inset-inline: 9px; line-height: 1.35; }
+  .poster-badge { right: 7px; top: 7px; padding: 4px 7px; font-size: 9px; }
+  .poster-placeholder i { font-size: 38px; }
+  .poster-placeholder span { font-size: 10px; letter-spacing: 1px; }
+  .poster-retry { bottom: 68px; max-width: calc(100% - 12px); font-size: 10px; }
+  .card-body { padding: 11px; min-width: 0; display: flex; flex-direction: column; justify-content: space-around; gap: 8px; }
+  .category-row { margin: 0; flex-wrap: wrap; gap: 4px; }
+  .category-select { max-width: 100%; min-height: 32px; }
+  .rating-row { margin: 0; gap: 2px; flex-wrap: wrap; }
+  .stars { gap: 0; }
+  .star { width: 23px; height: 28px; }
+  .card-actions { flex-wrap: wrap; gap: 8px 5px; }
+  .watch-toggle { min-height: 34px; }
+  .card-buttons { display: flex; gap: 5px; margin-inline-start: auto; }
+  .icon-button, .play-link { width: 35px; height: 35px; }
+  .footer { flex-direction: column; gap: 7px; }
+  .add-dialog { width: calc(100vw - 22px); max-height: calc(100dvh - 22px); }
+  .input-wrap input, .input-wrap select { font-size: 16px; }
+}
 @media (max-width: 370px) {
   .brand small { display: none; }
   .header-actions .btn span { display: none; }
-  .cards-grid { grid-template-columns: 1fr; }
-  .card { max-width: 330px; width: 100%; margin-inline: auto; }
+  .card { max-width: none; }
+  .card-body { padding: 9px; }
+  .star { width: 20px; }
+  .poster { min-height: 202px; }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
