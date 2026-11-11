@@ -105,7 +105,9 @@ a { color: inherit; text-decoration: none; }
 .empty-state > i { font-size: 40px; margin-bottom: 17px; }
 .empty-state h3 { font-size: 19px; margin: 0 0 6px; color: #e4e3f7; }
 .empty-state p { color: var(--subtle); margin: 0; max-width: 420px; line-height: 1.7; }
-.footer { display: flex; justify-content: space-between; gap: 10px; padding-bottom: 27px; color: #727c94; font-size: 12px; }
+.footer { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; padding-bottom: 27px; color: #727c94; font-size: 12px; }
+.footer a { color: #a99cff; text-decoration: underline; text-underline-offset: 3px; }
+.footer a:hover { color: #d4c8ff; }
 .brand-mini { color: #a49adc; font-weight: 900; direction: ltr; }
 .brand-mini i { font-size: 10px; }
 .add-dialog { position: fixed; margin: auto; width: min(480px, calc(100vw - 30px)); max-height: calc(100dvh - 30px); overflow: auto; color: var(--text); background: rgba(24,27,45,.94); backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px); border: 1px solid rgba(190,170,255,.26); border-radius: 22px; box-shadow: 0 28px 90px #03040add; padding: 0; }
