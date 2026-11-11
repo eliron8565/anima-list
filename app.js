@@ -5,10 +5,10 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
 import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
 import {
-  getDatabase, ref, onValue, push, set, update, remove, serverTimestamp
+  getDatabase, ref, onValue, push, set, update, remove, runTransaction, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
 import { firebaseConfig } from "./firebase-config.js";
-import { findPosterByTitle } from "./poster-lookup.js";
+import { findPosterByTitle, findPosterMatchByTitle } from "./poster-lookup.js";
 
 const $ = (selector) => document.querySelector(selector);
 const elements = {
@@ -21,6 +21,12 @@ const elements = {
   submit: $("#submitAdd"),
   search: $("#searchInput"),
   total: $("#totalCount"),
+  categoryCounts: {
+    all: $("#allCategoryCount"),
+    anime: $("#animeCategoryCount"),
+    series: $("#seriesCategoryCount"),
+    unsorted: $("#unsortedCategoryCount")
+  },
   watched: $("#watchedCount"),
   unwatched: $("#unwatchedCount"),
   result: $("#resultCount"),
@@ -33,8 +39,13 @@ const elements = {
 let db;
 let shows = [];
 let currentFilter = "all";
+let currentCategory = "all";
 let currentSearch = "";
 let toastTimer;
+// Prevent repeated lookups on every Firebase onValue event.
+const attemptedPosters = new Set();
+const lookingUpPosters = new Set();
+let backfillRunning = false;
 
 function setStatus(message, mode = "") {
   elements.status.className = "connection" + (mode ? " " + mode : "");
@@ -85,6 +96,11 @@ function updateStats() {
   elements.total.textContent = String(shows.length);
   elements.watched.textContent = String(watched);
   elements.unwatched.textContent = String(shows.length - watched);
+  for (const category of ["all", "anime", "series", "unsorted"]) {
+    const count = category === "all" ? shows.length :
+      shows.filter((show) => show.category === category).length;
+    elements.categoryCounts[category].textContent = String(count);
+  }
 }
 
 function render() {
@@ -94,7 +110,8 @@ function render() {
       (currentFilter === "watched" && show.watched) ||
       (currentFilter === "unwatched" && !show.watched);
     const byName = show.title.toLocaleLowerCase("he").includes(currentSearch);
-    return byStatus && byName;
+    const byCategory = currentCategory === "all" || show.category === currentCategory;
+    return byStatus && byName && byCategory;
   });
   elements.result.textContent = filtered.length + " כותרים";
 
@@ -149,11 +166,44 @@ function createCard(show) {
     poster.append(image);
   }
 
+  if (!imageUrl) {
+    const retry = el("button", "poster-retry");
+    retry.type = "button";
+    retry.disabled = lookingUpPosters.has(show.id);
+    retry.append(icon("fa-solid fa-image"), document.createTextNode(
+      retry.disabled ? "מחפש תמונה..." : "חפש פוסטר"
+    ));
+    retry.setAttribute("aria-label", "חפש פוסטר אוטומטי עבור " + show.title);
+    retry.addEventListener("click", () => {
+      attemptedPosters.add(show.id);
+      void fillMissingPoster(show, true);
+    });
+    poster.append(retry);
+  }
+
   const badge = el("span", "poster-badge" + (show.watched ? " watched" : ""),
     show.watched ? "✓ צפיתי" : "עוד לא צפיתי");
   poster.append(badge, el("h3", "poster-title", show.title));
 
   const body = el("div", "card-body");
+  const categoryRow = el("div", "category-row");
+  categoryRow.append(el("span", "mini-label", "סוג תוכן"));
+  const categorySelect = el("select", "category-select");
+  categorySelect.setAttribute("aria-label", "סוג התוכן של " + show.title);
+  for (const [value, label] of [
+    ["unsorted", "לא סווג"],
+    ["anime", "אנימה"],
+    ["series", "סדרה"]
+  ]) {
+    const option = el("option", "", label);
+    option.value = value;
+    categorySelect.append(option);
+  }
+  categorySelect.value = show.category;
+  categorySelect.addEventListener("change", () =>
+    patchShow(show.id, { category: categorySelect.value })
+  );
+  categoryRow.append(categorySelect);
   const ratingRow = el("div", "rating-row");
   ratingRow.append(el("span", "mini-label", "הדירוג שלנו"));
   const stars = el("div", "stars");
@@ -203,7 +253,7 @@ function createCard(show) {
 
   buttons.append(deleteButton);
   actions.append(toggle, buttons);
-  body.append(ratingRow, actions);
+  body.append(categoryRow, ratingRow, actions);
   card.append(poster, body);
   return card;
 }
@@ -234,6 +284,18 @@ elements.search.addEventListener("input", (event) => {
   render();
 });
 
+document.querySelectorAll("[data-category]").forEach((button) => {
+  button.addEventListener("click", () => {
+    currentCategory = button.dataset.category;
+    document.querySelectorAll("[data-category]").forEach((target) => {
+      const active = target === button;
+      target.classList.toggle("active", active);
+      target.setAttribute("aria-pressed", String(active));
+    });
+    render();
+  });
+});
+
 document.querySelectorAll("[data-filter]").forEach((button) => {
   button.addEventListener("click", () => {
     currentFilter = button.dataset.filter;
@@ -251,11 +313,12 @@ elements.form.addEventListener("submit", async (event) => {
   if (!db || !elements.form.reportValidity()) return;
 
   const title = $("#titleInput").value.trim();
+  const category = $("#categoryInput").value;
   const rawPosterUrl = $("#posterInput").value.trim();
   const posterUrl = rawPosterUrl ? httpsUrl(rawPosterUrl) : null;
   const rawWatchUrl = $("#watchInput").value.trim();
   const watchUrl = rawWatchUrl ? httpsUrl(rawWatchUrl) : null;
-  if (!title || title.length > 100 ||
+  if (!title || title.length > 100 || !["anime", "series"].includes(category) ||
       (rawPosterUrl && (!posterUrl || posterUrl.length > 2048)) ||
       (rawWatchUrl && (!watchUrl || watchUrl.length > 2048))) {
     toast("יש להזין שם וקישורי HTTPS תקינים אם הוזנו.", true);
@@ -268,12 +331,13 @@ elements.form.addEventListener("submit", async (event) => {
     let autoPosterUrl = null;
     if (!posterUrl) {
       elements.submit.textContent = "מחפש פוסטר אוטומטית...";
-      autoPosterUrl = await findPosterByTitle(title);
+      autoPosterUrl = await findPosterByTitle(title, category);
     }
     elements.submit.textContent = "שומר בספרייה...";
     const newShow = push(ref(db, "shows"));
     await set(newShow, {
       title,
+      category,
       ...((posterUrl || autoPosterUrl) ? { posterUrl: posterUrl || autoPosterUrl } : {}),
       ...(watchUrl ? { watchUrl } : {}),
       rating: 0,
@@ -294,6 +358,62 @@ elements.form.addEventListener("submit", async (event) => {
   }
 });
 
+/**
+ * Runs when the site is open: old entries without posters get a best-effort
+ * lookup. Failed lookups remain placeholders; the user may retry manually.
+ * A transaction avoids overwriting another visitor's changes.
+ */
+async function fillMissingPoster(show, notify = false) {
+  if (lookingUpPosters.has(show.id)) return;
+  lookingUpPosters.add(show.id);
+  if (notify) render();
+  try {
+    const found = await findPosterMatchByTitle(show.title, show.category);
+    if (!found) {
+      if (notify) toast("לא נמצא פוסטר עם התאמה טובה. אפשר לנסות שוב מאוחר יותר.");
+      return;
+    }
+    const result = await runTransaction(ref(db, "shows/" + show.id), (current) => {
+      if (!current || httpsUrl(current.posterUrl)) return; // Keep manually set posters.
+      const update = { ...current, posterUrl: found.posterUrl };
+      if ((!current.category || current.category === "unsorted") && found.category) {
+        update.category = found.category;
+      }
+      return update;
+    }, { applyLocally: false });
+    if (notify) toast(result.committed ?
+      "נמצאה תמונה ונשמרה בספרייה!" :
+      "כבר עודכנה תמונה לסדרה הזאת.");
+  } catch (error) {
+    console.warn("Poster lookup/update failed for", show.title, error);
+    if (notify) toast("חיפוש הפוסטר נכשל. אפשר לנסות שוב.", true);
+  } finally {
+    lookingUpPosters.delete(show.id);
+    if (notify) render();
+  }
+}
+
+async function backfillMissingPosters() {
+  if (backfillRunning) return;
+  backfillRunning = true;
+  try {
+    while (true) {
+      const next = shows.find((show) =>
+        !httpsUrl(show.posterUrl) &&
+        !attemptedPosters.has(show.id) &&
+        !lookingUpPosters.has(show.id)
+      );
+      if (!next) break;
+      attemptedPosters.add(next.id);
+      await fillMissingPoster(next);
+      // Be considerate of external services' request rates.
+      await new Promise((resolve) => setTimeout(resolve, 850));
+    }
+  } finally {
+    backfillRunning = false;
+  }
+}
+
 function loadShows() {
   onValue(
     ref(db, "shows"),
@@ -306,12 +426,16 @@ function loadShows() {
           title: value.title,
           posterUrl: value.posterUrl || "",
           watchUrl: value.watchUrl || "",
+          category: ["anime", "series"].includes(value.category) ? value.category : "unsorted",
           watched: value.watched === true,
           rating: Number.isInteger(value.rating) && value.rating >= 0 && value.rating <= 5 ? value.rating : 0,
           createdAt: Number(value.createdAt) || 0
         }))
         .sort((a, b) => b.createdAt - a.createdAt || a.title.localeCompare(b.title, "he"));
       render();
+      // Only try automatically for records missing posters, including older ones.
+      // A successful lookup is written to Firebase for everyone.
+      void backfillMissingPosters();
     },
     (error) => {
       console.error("Realtime listener failed:", error);
