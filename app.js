@@ -133,6 +133,10 @@ async function deleteShow(show) {
 function createCard(show) {
   const card = el("article", "card");
   const poster = el("div", "poster");
+  const placeholder = el("div", "poster-placeholder");
+  placeholder.setAttribute("aria-hidden", "true");
+  placeholder.append(icon("fa-solid fa-clapperboard"), el("span", "", "WatchVault"));
+  poster.append(placeholder);
   const imageUrl = httpsUrl(show.posterUrl);
   if (imageUrl) {
     const image = el("img");
@@ -246,12 +250,14 @@ elements.form.addEventListener("submit", async (event) => {
   if (!db || !elements.form.reportValidity()) return;
 
   const title = $("#titleInput").value.trim();
-  const posterUrl = httpsUrl($("#posterInput").value);
+  const rawPosterUrl = $("#posterInput").value.trim();
+  const posterUrl = rawPosterUrl ? httpsUrl(rawPosterUrl) : null;
   const rawWatchUrl = $("#watchInput").value.trim();
   const watchUrl = rawWatchUrl ? httpsUrl(rawWatchUrl) : null;
-  if (!title || title.length > 100 || !posterUrl ||
-      posterUrl.length > 2048 || (rawWatchUrl && (!watchUrl || watchUrl.length > 2048))) {
-    toast("יש להזין שם, קישור HTTPS לפוסטר וקישור צפייה תקין אם הוזן.", true);
+  if (!title || title.length > 100 ||
+      (rawPosterUrl && (!posterUrl || posterUrl.length > 2048)) ||
+      (rawWatchUrl && (!watchUrl || watchUrl.length > 2048))) {
+    toast("יש להזין שם וקישורי HTTPS תקינים אם הוזנו.", true);
     return;
   }
 
@@ -259,7 +265,8 @@ elements.form.addEventListener("submit", async (event) => {
   try {
     const newShow = push(ref(db, "shows"));
     await set(newShow, {
-      title, posterUrl,
+      title,
+      ...(posterUrl ? { posterUrl } : {}),
       ...(watchUrl ? { watchUrl } : {}),
       rating: 0,
       watched: false,
