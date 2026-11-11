@@ -42,7 +42,8 @@ function bestMatch(title, candidates) {
     .map((x) => ({
       score: Math.max(0, ...x.names.map((name) => titleScore(title, name))),
       image: x.image,
-      officialTitle: x.officialTitle
+      officialTitle: x.officialTitle,
+      tvLooksAnime: x.tvLooksAnime === true
     }))
     .filter((x) => x.score >= 81)
     .sort((a, b) => b.score - a.score);
@@ -101,7 +102,14 @@ async function searchTvMaze(title) {
   const candidates = results.map((entry) => ({
     names: [entry.show?.name],
     officialTitle: entry.show?.name || "",
-    image: validImage(entry.show?.image?.original || entry.show?.image?.medium)
+    image: validImage(entry.show?.image?.original || entry.show?.image?.medium),
+    // A title in both databases can be the same anime. Check TVmaze origin/type
+    // instead of treating all cross-catalog duplicates as live-action series.
+    tvLooksAnime: (
+      (entry.show?.genres || []).some((genre) => /anime/i.test(genre)) ||
+      (/animat/i.test(entry.show?.type || "") &&
+       [entry.show?.network?.country?.code, entry.show?.webChannel?.country?.code].includes("JP"))
+    )
   }));
   const result = bestMatch(title, candidates);
   return result ? { ...result, category: "series" } : null;
@@ -123,9 +131,18 @@ export async function findPosterMatchByTitle(title, category = "unsorted") {
     .map((attempt) => attempt.value)
     .sort((a, b) => b.score - a.score);
   if (!matches.length) return null;
-  const [winner, second] = matches;
-  // No automatic rename for an ambiguous cross-catalog match.
-  if (second && winner.score - second.score < 5) return null;
+  let [winner, second] = matches;
+  // When the same Japanese anime appears in both catalogs, classify it as anime.
+  // Unrelated programs with the same or nearly identical name stay unsorted.
+  if (second && winner.score - second.score < 5) {
+    const anilist = matches.find((m) => m.category === "anime");
+    const tvmaze = matches.find((m) => m.category === "series");
+    if (anilist && tvmaze && tvmaze.tvLooksAnime && anilist.score >= 95) {
+      winner = anilist;
+    } else {
+      return null;
+    }
+  }
   const officialTitle = String(winner.officialTitle || "").trim();
   return {
     posterUrl: winner.image || null,
