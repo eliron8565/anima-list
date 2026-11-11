@@ -79,7 +79,8 @@ async function searchAniList(title) {
     names: [item.title?.english, item.title?.romaji, item.title?.native, ...(item.synonyms || [])],
     image: validImage(item.coverImage?.extraLarge || item.coverImage?.large)
   }));
-  return bestMatch(title, candidates);
+  const result = bestMatch(title, candidates);
+  return result ? { ...result, category: "anime" } : null;
 }
 
 async function searchTvMaze(title) {
@@ -90,19 +91,37 @@ async function searchTvMaze(title) {
     names: [entry.show?.name],
     image: validImage(entry.show?.image?.original || entry.show?.image?.medium)
   }));
-  return bestMatch(title, candidates);
+  const result = bestMatch(title, candidates);
+  return result ? { ...result, category: "series" } : null;
 }
 
-export async function findPosterByTitle(title) {
+/**
+ * Lookup a poster, optionally limiting to an explicitly selected category.
+ * Unclassified legacy entries search both catalogs. We only suggest an
+ * automatic category if one provider is a clear winner.
+ */
+export async function findPosterMatchByTitle(title, category = "unsorted") {
   if (normalizeTitle(title).length < 2) return null;
-  // Both APIs are independent. One may be unavailable/rate-limited.
-  const attempts = await Promise.allSettled([
-    searchAniList(title),
-    searchTvMaze(title)
-  ]);
+  const requests = category === "anime" ? [searchAniList(title)] :
+    category === "series" ? [searchTvMaze(title)] :
+    [searchAniList(title), searchTvMaze(title)];
+  const attempts = await Promise.allSettled(requests);
   const matches = attempts
     .filter((attempt) => attempt.status === "fulfilled" && attempt.value)
     .map((attempt) => attempt.value)
     .sort((a, b) => b.score - a.score);
-  return matches[0]?.image || null;
+  if (!matches.length) return null;
+
+  const [winner, second] = matches;
+  // Equal or near-equal results in two catalogs are ambiguous.
+  const confidentCategory = !second || winner.score - second.score >= 5;
+  return {
+    posterUrl: winner.image,
+    category: confidentCategory ? winner.category : null
+  };
+}
+
+export async function findPosterByTitle(title, category = "unsorted") {
+  const match = await findPosterMatchByTitle(title, category);
+  return match?.posterUrl || null;
 }
