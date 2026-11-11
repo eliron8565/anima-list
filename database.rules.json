@@ -69,6 +69,24 @@
           ".validate": false
         }
       }
+    },
+    "nameProgress": {
+      "$nameKey": {
+        ".read": "auth != null",
+        "$showId": {
+          ".write": "auth != null",
+          ".validate": "newData.hasChildren(['watched', 'updatedAt'])",
+          "watched": {
+            ".validate": "newData.isBoolean()"
+          },
+          "updatedAt": {
+            ".validate": "newData.isNumber() && newData.val() > 0"
+          },
+          "$other": {
+            ".validate": false
+          }
+        }
+      }
     }
   }
 }
