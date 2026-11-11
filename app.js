@@ -8,7 +8,7 @@ import {
   getDatabase, ref, onValue, push, set, update, remove, runTransaction, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
 import { firebaseConfig } from "./firebase-config.js";
-import { findPosterMatchByTitle } from "./poster-lookup.js?v=official-title-1";
+import { findPosterMatchByTitle } from "./poster-lookup.js?v=auto-category-2";
 
 const $ = (selector) => document.querySelector(selector);
 const elements = {
@@ -138,9 +138,11 @@ function render() {
 async function patchShow(showId, patch) {
   try {
     await update(ref(db, "shows/" + showId), patch);
+    return true;
   } catch (error) {
     console.error("Failed to update show:", error);
     toast("לא הצלחנו לשמור את השינוי. בדקו חיבור והרשאות.", true);
+    return false;
   }
 }
 
@@ -202,16 +204,42 @@ function createCard(show) {
   for (const [value, label] of [
     ["unsorted", "לא סווג"],
     ["anime", "אנימה"],
-    ["series", "סדרה"]
+    ["series", "סדרה רגילה"],
+    ["auto", "✨ זהה אוטומטית"]
   ]) {
     const option = el("option", "", label);
     option.value = value;
     categorySelect.append(option);
   }
   categorySelect.value = show.category;
-  categorySelect.addEventListener("change", () =>
-    patchShow(show.id, { category: categorySelect.value, metadataChecked: false })
-  );
+  categorySelect.addEventListener("change", async () => {
+    const selected = categorySelect.value;
+    categorySelect.disabled = true;
+    try {
+      if (selected === "auto") {
+        const match = await findPosterMatchByTitle(show.title, "unsorted");
+        if (!match?.category) {
+          toast("לא נמצאה התאמה בטוחה. אפשר לבחור אנימה או סדרה ידנית.");
+          return;
+        }
+        const saved = await patchShow(show.id, {
+          category: match.category,
+          metadataChecked: true
+        });
+        if (saved) toast("זוהה אוטומטית: " +
+          (match.category === "anime" ? "אנימה" : "סדרה רגילה"));
+      } else {
+        await patchShow(show.id, { category: selected, metadataChecked: false });
+      }
+    } catch (error) {
+      console.warn("Category detection failed:", error);
+      toast("הזיהוי האוטומטי לא זמין כרגע. אפשר לבחור ידנית.", true);
+    } finally {
+      categorySelect.disabled = false;
+      // onValue renders the new selection after Firebase confirms the update.
+      categorySelect.value = shows.find((item) => item.id === show.id)?.category || show.category;
+    }
+  });
   categoryRow.append(categorySelect);
   const ratingRow = el("div", "rating-row");
   ratingRow.append(el("span", "mini-label", "הדירוג שלנו"));
@@ -353,14 +381,14 @@ elements.form.addEventListener("submit", async (event) => {
   event.preventDefault();
   if (!db || !elements.form.reportValidity()) return;
   const title = $("#titleInput").value.trim();
-  const category = elements.categoryInput.value;
+  const requestedCategory = elements.categoryInput.value;
   const rawPosterUrl = $("#posterInput").value.trim();
   const posterUrl = rawPosterUrl ? httpsUrl(rawPosterUrl) : null;
   const rawWatchUrl = $("#watchInput").value.trim();
   const watchUrl = rawWatchUrl ? httpsUrl(rawWatchUrl) : null;
   const saveId = editingId;
   if (!title || title.length > 100 ||
-      !(saveId ? ["anime", "series", "unsorted"] : ["anime", "series"]).includes(category) ||
+      !(saveId ? ["anime", "series", "unsorted", "auto"] : ["anime", "series", "auto"]).includes(requestedCategory) ||
       (rawPosterUrl && (!posterUrl || posterUrl.length > 2048)) ||
       (rawWatchUrl && (!watchUrl || watchUrl.length > 2048))) {
     toast("יש להזין שם וסוג תוכן, וקישורי HTTPS תקינים אם הוזנו.", true);
@@ -371,15 +399,21 @@ elements.form.addEventListener("submit", async (event) => {
   let success = false;
   try {
     if (saveId) {
+      // Auto mode asks both catalogs; a doubtful result does not erase the
+      // existing category of an item somebody already categorized.
+      const detected = requestedCategory === "auto" ?
+        await findPosterMatchByTitle(title, "unsorted") : null;
       setSubmitLabel("שומר שינויים...", "fa-solid fa-circle-notch fa-spin");
       // A transaction preserves rating, watched and other changes made by
       // another visitor while this person edits the form.
       const result = await runTransaction(ref(db, "shows/" + saveId), (current) => {
         if (!current) return;
+        const finalCategory = requestedCategory === "auto" ?
+          (detected?.category || current.category || "unsorted") : requestedCategory;
         const titleChanged = current.title !== title;
-        const categoryChanged = current.category !== category;
+        const categoryChanged = (current.category || "unsorted") !== finalCategory;
         const posterChanged = (current.posterUrl || "") !== (posterUrl || "");
-        const next = { ...current, title, category };
+        const next = { ...current, title, category: finalCategory };
         if (posterUrl) next.posterUrl = posterUrl;
         else delete next.posterUrl;
         if (watchUrl) next.watchUrl = watchUrl;
@@ -391,11 +425,17 @@ elements.form.addEventListener("submit", async (event) => {
         return next;
       }, { applyLocally: false });
       if (!result.committed) throw new Error("הכותר כבר לא קיים");
-      toast("השינויים נשמרו בהצלחה!");
+      toast(requestedCategory === "auto" && !detected?.category ?
+        "השינויים נשמרו. הזיהוי לא היה חד-משמעי, ולכן הסיווג הקודם נשאר." :
+        "השינויים נשמרו בהצלחה!");
     } else {
-      setSubmitLabel("מחפש שם רשמי ופוסטר...", "fa-solid fa-circle-notch fa-spin");
+      setSubmitLabel("מזהה סוג תוכן ומחפש פוסטר...", "fa-solid fa-circle-notch fa-spin");
       // A manual image URL wins; catalog matching may still normalize the name.
-      const match = await findPosterMatchByTitle(title, category);
+      const match = await findPosterMatchByTitle(
+        title, requestedCategory === "auto" ? "unsorted" : requestedCategory
+      );
+      const category = requestedCategory === "auto" ?
+        (match?.category || "unsorted") : requestedCategory;
       const officialTitle = match?.officialTitle || title;
       setSubmitLabel("שומר בספרייה...", "fa-solid fa-circle-notch fa-spin");
       const newShow = push(ref(db, "shows"));
@@ -410,9 +450,11 @@ elements.form.addEventListener("submit", async (event) => {
         watched: false,
         createdAt: serverTimestamp()
       });
-      toast(match?.officialTitle && match.officialTitle !== title ?
+      toast(requestedCategory === "auto" && category === "unsorted" ?
+        "הסדרה נשמרה ב'לא סווגו'. לא נמצאה התאמה בטוחה; אפשר לשנות ידנית." :
+        match?.officialTitle && match.officialTitle !== title ?
         "נוסף עם השם הרשמי: " + match.officialTitle :
-        "הסדרה נוספה לספרייה בהצלחה!");
+        "הסדרה נוספה כ" + (category === "anime" ? "אנימה" : "סדרה") + " בהצלחה!");
     }
     success = true;
     elements.modal.close();
@@ -485,7 +527,7 @@ async function backfillMetadata() {
   try {
     while (true) {
       const pending = shows.filter((show) =>
-        !show.metadataChecked &&
+        (!show.metadataChecked || show.category === "unsorted") &&
         !attemptedMetadata.has(show.id) &&
         !lookingUpMetadata.has(show.id)
       );
