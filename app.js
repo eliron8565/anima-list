@@ -3,10 +3,7 @@
  * Paste your Firebase Web App config in firebase-config.js.
  */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
-import {
-  getAuth, onAuthStateChanged, signInAnonymously,
-  GoogleAuthProvider, signInWithPopup, signOut
-} from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
+import { getAuth, onAuthStateChanged, signInAnonymously } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-auth.js";
 import {
   getDatabase, ref, onValue, push, set, update, remove, runTransaction, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
@@ -24,10 +21,10 @@ const elements = {
   accountDescription: $("#accountDescription"),
   profileName: $("#profileName"),
   profileMode: $("#profileMode"),
-  googleLogin: $("#googleLogin"),
-  renameProfile: $("#renameProfile"),
+  nameForm: $("#nameForm"),
+  nameInput: $("#nameInput"),
+  saveName: $("#saveName"),
   importOldWatched: $("#importOldWatched"),
-  logoutAccount: $("#logoutAccount"),
   modal: $("#addDialog"),
   close: $("#closeModal"),
   cancel: $("#cancelModal"),
@@ -58,12 +55,11 @@ const elements = {
 let db;
 let auth;
 let viewerUser = null;
-let profileName = "אורח";
+let profileName = "";
+let progressKey = "";
 let personalProgress = {};
 let stopProgressListening = null;
-let stopProfileListening = null;
 let showsListening = false;
-let loginPending = false;
 let shows = [];
 let currentFilter = "all";
 let currentCategory = "all";
@@ -124,149 +120,143 @@ function hasWatched(show) {
   return personalProgress[show.id]?.watched === true;
 }
 
-function accountDisplayName(user) {
-  if (!user || user.isAnonymous) return "אורח";
-  return (user.displayName || "משתמש Google").trim().slice(0, 40);
+
+/**
+ * Profiles are identified only by a normalized name, not by a login.
+ * Using the same name on multiple devices accesses the same list.
+ * WARNING: Anyone can impersonate the name; never call it private/secure.
+ */
+function normalizeProfileName(value) {
+  return String(value || "").normalize("NFKC").trim().replace(/\s+/g, " ");
+}
+
+function keyForName(name) {
+  // Firebase-compatible deterministic key; avoids dots, slashes, #, [ and ].
+  const normalized = normalizeProfileName(name).toLocaleLowerCase("he");
+  return Array.from(new TextEncoder().encode(normalized),
+    (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+function rememberedName() {
+  try {
+    return localStorage.getItem("watchvault.profileName") || "";
+  } catch {
+    return "";
+  }
+}
+
+function rememberName(name) {
+  try {
+    localStorage.setItem("watchvault.profileName", name);
+  } catch {
+    // The database remains usable even when local storage is blocked.
+  }
 }
 
 function showAccountDetails() {
-  const googleAccount = !!viewerUser && !viewerUser.isAnonymous;
-  const name = profileName || "אורח";
+  const chosen = Boolean(progressKey);
+  const name = chosen ? profileName : "בחר שם";
   elements.accountName.textContent = name;
-  elements.profileName.textContent = name;
-  elements.profileMode.textContent = googleAccount ?
-    "מחובר עם Google · מעקב אישי מסונכרן" :
-    "מצב אורח · המעקב נשמר רק בדפדפן הזה";
-  elements.accountDescription.textContent = googleAccount ?
-    "הסדרות שחברים מוסיפים משותפות לכולם. מה שצפית בו נשמר רק בחשבון שלך." :
-    "לשמירת רשימת הצפייה בטלפון ובמחשב, התחבר עם Google.";
-  elements.googleLogin.hidden = googleAccount;
-  elements.logoutAccount.hidden = !googleAccount;
+  elements.profileName.textContent = chosen ? profileName : "לא נבחר שם";
+  elements.profileMode.textContent = chosen ?
+    "הרשימה מסונכרנת לפי השם שבחרת" : "בחר שם כדי להתחיל לסמן צפייה";
+  elements.accountDescription.textContent = chosen ?
+    "כל סימוני הצפייה של השם " + profileName + " נשמרים ב-Firebase." :
+    "בלי חשבון Google: בוחרים שם ומתחילים לסמן.";
+  elements.nameInput.value = profileName;
   elements.accountButton.disabled = !viewerUser;
-  elements.renameProfile.disabled = !viewerUser;
-  elements.importOldWatched.disabled = !viewerUser;
+  elements.saveName.disabled = !viewerUser;
+  elements.importOldWatched.disabled = !viewerUser || !chosen;
 }
 
-function listenToUserData(user) {
-  if (stopProgressListening) stopProgressListening();
-  if (stopProfileListening) stopProfileListening();
-  viewerUser = user;
+function chooseProfileName(name, notify = false) {
+  const normalized = normalizeProfileName(name);
+  // Limit both char count and actual UTF-8 bytes in Firebase path.
+  const encoded = normalized ? keyForName(normalized) : "";
+  if (!normalized || normalized.length > 40 || encoded.length > 500) {
+    toast("צריך לבחור שם באורך 1 עד 40 תווים.", true);
+    return false;
+  }
+  if (!viewerUser) {
+    toast("האתר עדיין מתחבר ל-Firebase. נסה שוב.", true);
+    return false;
+  }
+  if (stopProgressListening) {
+    stopProgressListening();
+    stopProgressListening = null;
+  }
+  profileName = normalized;
+  progressKey = encoded;
   personalProgress = {};
-  profileName = accountDisplayName(user);
-  render();
+  rememberName(normalized);
   showAccountDetails();
-  if (!user) return;
-
-  const ownUid = user.uid;
-  stopProgressListening = onValue(ref(db, "userProgress/" + ownUid), (snapshot) => {
-    if (viewerUser?.uid !== ownUid) return;
-    personalProgress = snapshot.val() || {};
-    render();
-  }, (error) => {
-    console.error("Cannot load personal watched progress:", error);
-    toast("אין הרשאה לקרוא את סימוני הצפייה האישיים. עדכן את כללי Firebase.", true);
-  });
-
-  stopProfileListening = onValue(ref(db, "profiles/" + ownUid), (snapshot) => {
-    if (viewerUser?.uid !== ownUid) return;
-    const stored = snapshot.val()?.name;
-    profileName = typeof stored === "string" && stored.trim() ?
-      stored.trim().slice(0, 40) : accountDisplayName(user);
-    showAccountDetails();
-  }, (error) => console.warn("Could not load profile:", error));
+  render();
+  const expected = encoded;
+  stopProgressListening = onValue(
+    ref(db, "nameProgress/" + expected),
+    (snapshot) => {
+      if (progressKey !== expected) return;
+      personalProgress = snapshot.val() || {};
+      render();
+    },
+    (error) => {
+      console.error("Could not read name progress:", error);
+      toast("לא ניתן לסנכרן את הרשימה. צריך לפרסם את כללי Firebase החדשים.", true);
+    }
+  );
+  if (notify) toast("נבחר השם " + normalized + " — סימוני הצפייה יסונכרנו לפי השם.");
+  return true;
 }
 
 async function setPersonalWatched(showId, watched) {
+  if (!progressKey) {
+    showAccountDetails();
+    elements.accountDialog.showModal();
+    elements.nameInput.focus();
+    toast("בחר שם כדי לשמור מה צפית.");
+    return;
+  }
   if (!viewerUser) {
-    toast("צריך להתחבר לפני ששומרים מעקב צפייה.", true);
+    toast("Firebase עדיין מתחבר. נסה שוב.", true);
     return;
   }
   try {
-    await set(ref(db, "userProgress/" + viewerUser.uid + "/" + showId), {
+    await set(ref(db, "nameProgress/" + progressKey + "/" + showId), {
       watched: watched === true,
       updatedAt: serverTimestamp()
     });
   } catch (error) {
-    console.error("Saving personal progress failed:", error);
-    toast("לא הצלחנו לשמור את הסימון האישי. ודא שעדכנת את כללי Firebase.", true);
-  }
-}
-
-async function logInWithGoogle() {
-  if (!auth || loginPending) return;
-  loginPending = true;
-  elements.googleLogin.disabled = true;
-  try {
-    const provider = new GoogleAuthProvider();
-    provider.setCustomParameters({ prompt: "select_account" });
-    await signInWithPopup(auth, provider);
-    elements.accountDialog.close();
-    toast("התחברת בהצלחה! מעכשיו הסימונים שלך יסתנכרנו בין המכשירים.");
-  } catch (error) {
-    console.error("Google login failed:", error);
-    const code = error?.code || "";
-    if (code === "auth/popup-closed-by-user" || code === "auth/cancelled-popup-request") {
-      return;
-    }
-    if (code === "auth/operation-not-allowed") {
-      toast("צריך להפעיל Google ב-Firebase Authentication → Sign-in method.", true);
-    } else if (code === "auth/unauthorized-domain") {
-      toast("צריך לאשר את eliron8565.github.io ב-Firebase Authentication → Settings.", true);
-    } else if (code === "auth/popup-blocked") {
-      toast("הדפדפן חסם את חלון Google. אפשר חלונות קופצים לאתר או נסה Chrome.", true);
-    } else {
-      toast("ההתחברות נכשלה. בדוק ש-Google מופעל ב-Firebase ונסה שוב.", true);
-    }
-  } finally {
-    loginPending = false;
-    elements.googleLogin.disabled = false;
-  }
-}
-
-async function renameMyProfile() {
-  if (!viewerUser) return;
-  const requested = window.prompt("איך לקרוא לך באתר? לדוגמה: אלירון", profileName);
-  if (requested === null) return;
-  const name = requested.trim();
-  if (!name || name.length > 40) {
-    toast("השם חייב להכיל בין 1 ל־40 תווים.", true);
-    return;
-  }
-  try {
-    await set(ref(db, "profiles/" + viewerUser.uid), { name });
-    toast("שם התצוגה עודכן ל־" + name);
-  } catch (error) {
-    console.error("Rename failed:", error);
-    toast("שמירת השם נכשלה. בדוק את כללי Firebase.", true);
+    console.error("Saving watched progress by name failed:", error);
+    toast("שמירת הצפייה נכשלה. יש לעדכן את כללי Firebase.", true);
   }
 }
 
 async function importOldWatched() {
-  if (!viewerUser) return;
+  if (!progressKey) {
+    toast("קודם בחר שם לשמירת סימוני הצפייה.", true);
+    return;
+  }
   const oldWatched = shows.filter((show) =>
     show.legacyWatched && !hasWatched(show)
   );
   if (!oldWatched.length) {
-    toast("לא נמצאו סימוני צפייה ישנים שצריך לייבא.");
+    toast("לא נמצאו סימונים ישנים לייבוא.");
     return;
   }
   if (!window.confirm("לייבא " + oldWatched.length +
-    " סימוני ״צפיתי״ שהיו משותפים לכולם לתוך החשבון האישי שלך?")) return;
+    " סימוני צפייה ישנים לרשימה של " + profileName + "?")) return;
   elements.importOldWatched.disabled = true;
+  const selectedKey = progressKey;
   try {
-    const uid = viewerUser.uid;
-    const work = oldWatched.map((show) =>
-      set(ref(db, "userProgress/" + uid + "/" + show.id), {
+    const results = await Promise.allSettled(oldWatched.map((show) =>
+      set(ref(db, "nameProgress/" + selectedKey + "/" + show.id), {
         watched: true,
         updatedAt: serverTimestamp()
       })
-    );
-    const results = await Promise.allSettled(work);
-    const successes = results.filter((result) => result.status === "fulfilled").length;
-    toast("יובאו " + successes + " סימוני צפייה לחשבון שלך.");
-    if (successes < results.length) {
-      toast("חלק מהסימונים לא נשמרו. בדוק את כללי Firebase.", true);
-    }
+    ));
+    const success = results.filter((result) => result.status === "fulfilled").length;
+    toast("יובאו " + success + " סימונים לרשימה של " + profileName);
+    if (success !== results.length) toast("חלק מהסימונים לא נשמרו. בדוק הרשאות.", true);
   } finally {
     elements.importOldWatched.disabled = false;
   }
@@ -521,26 +511,20 @@ function closeModal() {
 }
 
 elements.accountButton.addEventListener("click", () => {
-  if (viewerUser) elements.accountDialog.showModal();
+  if (!viewerUser) return;
+  showAccountDetails();
+  elements.accountDialog.showModal();
+  elements.nameInput.focus();
 });
 elements.closeAccount.addEventListener("click", () => elements.accountDialog.close());
 elements.accountDialog.addEventListener("click", (event) => {
   if (event.target === elements.accountDialog) elements.accountDialog.close();
 });
-elements.googleLogin.addEventListener("click", () => void logInWithGoogle());
-elements.renameProfile.addEventListener("click", () => void renameMyProfile());
-elements.importOldWatched.addEventListener("click", () => void importOldWatched());
-elements.logoutAccount.addEventListener("click", async () => {
-  if (!auth) return;
-  try {
-    await signOut(auth);
-    elements.accountDialog.close();
-    toast("התנתקת. חזרת למצב אורח.");
-  } catch (error) {
-    console.error("Sign-out failed:", error);
-    toast("ההתנתקות לא הצליחה.", true);
-  }
+elements.nameForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  if (chooseProfileName(elements.nameInput.value, true)) elements.accountDialog.close();
 });
+elements.importOldWatched.addEventListener("click", () => void importOldWatched());
 
 elements.open.addEventListener("click", openModal);
 elements.close.addEventListener("click", closeModal);
@@ -809,20 +793,23 @@ async function start() {
     });
 
     onAuthStateChanged(auth, (user) => {
-      listenToUserData(user);
+      viewerUser = user;
       if (!user) {
         elements.open.disabled = true;
-        // Guests can still add recommendations and use this browser's progress.
-        if (!loginPending) {
-          signInAnonymously(auth).catch((error) => {
-            console.error("Anonymous sign-in failed:", error);
-            setStatus("שגיאת התחברות", "error");
-            toast("צריך להפעיל Anonymous Authentication ב-Firebase.", true);
-          });
-        }
+        showAccountDetails();
+        // Anonymous Firebase Auth is invisible to visitors. No Google required.
+        signInAnonymously(auth).catch((error) => {
+          console.error("Anonymous sign-in failed:", error);
+          setStatus("שגיאת התחברות", "error");
+          toast("צריך להפעיל Anonymous Authentication ב-Firebase.", true);
+        });
         return;
       }
       elements.open.disabled = false;
+      elements.accountButton.disabled = false;
+      const previous = rememberedName();
+      if (previous && !progressKey) chooseProfileName(previous);
+      showAccountDetails();
       if (!showsListening) {
         showsListening = true;
         loadShows();
