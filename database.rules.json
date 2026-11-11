@@ -30,6 +30,12 @@
         },
         "category": {
           ".validate": "newData.isString() && (newData.val() === 'anime' || newData.val() === 'series' || newData.val() === 'unsorted')"
+        },
+        "metadataChecked": {
+          ".validate": "newData.isBoolean()"
+        },
+        "titleLocked": {
+          ".validate": "newData.isBoolean()"
         }
       }
     }
