@@ -20,6 +20,7 @@ const elements = {
   form: $("#addForm"),
   submit: $("#submitAdd"),
   search: $("#searchInput"),
+  posterSync: $("#posterSyncStatus"),
   total: $("#totalCount"),
   categoryCounts: {
     all: $("#allCategoryCount"),
@@ -396,20 +397,27 @@ async function fillMissingPoster(show, notify = false) {
 async function backfillMissingPosters() {
   if (backfillRunning) return;
   backfillRunning = true;
+  let attempted = 0;
   try {
     while (true) {
-      const next = shows.find((show) =>
+      const pending = shows.filter((show) =>
         !httpsUrl(show.posterUrl) &&
         !attemptedPosters.has(show.id) &&
         !lookingUpPosters.has(show.id)
       );
-      if (!next) break;
+      if (!pending.length) break;
+      elements.posterSync.hidden = false;
+      elements.posterSync.textContent = "מחפש פוסטרים לכותרות ישנות... (" +
+        (attempted + 1) + " מתוך " + (attempted + pending.length) + ")";
+      const next = pending[0];
       attemptedPosters.add(next.id);
       await fillMissingPoster(next);
+      attempted += 1;
       // Be considerate of external services' request rates.
       await new Promise((resolve) => setTimeout(resolve, 850));
     }
   } finally {
+    elements.posterSync.hidden = true;
     backfillRunning = false;
   }
 }
