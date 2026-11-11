@@ -8,6 +8,7 @@ import {
   getDatabase, ref, onValue, push, set, update, remove, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-database.js";
 import { firebaseConfig } from "./firebase-config.js";
+import { findPosterByTitle } from "./poster-lookup.js";
 
 const $ = (selector) => document.querySelector(selector);
 const elements = {
@@ -263,10 +264,17 @@ elements.form.addEventListener("submit", async (event) => {
 
   elements.submit.disabled = true;
   try {
+    // Manual URL always wins; search only when the poster field is blank.
+    let autoPosterUrl = null;
+    if (!posterUrl) {
+      elements.submit.textContent = "מחפש פוסטר אוטומטית...";
+      autoPosterUrl = await findPosterByTitle(title);
+    }
+    elements.submit.textContent = "שומר בספרייה...";
     const newShow = push(ref(db, "shows"));
     await set(newShow, {
       title,
-      ...(posterUrl ? { posterUrl } : {}),
+      ...((posterUrl || autoPosterUrl) ? { posterUrl: posterUrl || autoPosterUrl } : {}),
       ...(watchUrl ? { watchUrl } : {}),
       rating: 0,
       watched: false,
@@ -274,12 +282,15 @@ elements.form.addEventListener("submit", async (event) => {
     });
     elements.modal.close();
     elements.form.reset();
-    toast("הסדרה נוספה לכולם בהצלחה!");
+    toast(autoPosterUrl ? "הסדרה נוספה עם פוסטר שנמצא אוטומטית!" :
+      (!posterUrl ? "הסדרה נוספה. לא נמצאה תמונה מתאימה, ולכן מוצג עיצוב חלופי." :
+      "הסדרה נוספה לכולם בהצלחה!"));
   } catch (error) {
     console.error("Failed to add show:", error);
     toast("לא הצלחנו להוסיף את הסדרה. בדקו הרשאות וחיבור.", true);
   } finally {
     elements.submit.disabled = false;
+    elements.submit.replaceChildren(icon("fa-solid fa-plus"), document.createTextNode(" הוסף לספרייה"));
   }
 });
 
