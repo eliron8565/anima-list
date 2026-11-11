@@ -1,0 +1,34 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "shows": {
+      ".read": true,
+      "$showId": {
+        ".write": "auth != null",
+        ".validate": "newData.hasChildren(['title', 'posterUrl', 'watchUrl', 'rating', 'watched', 'createdAt']) && (!data.exists() || newData.child('createdAt').val() === data.child('createdAt').val())",
+        "title": {
+          ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 100"
+        },
+        "posterUrl": {
+          ".validate": "newData.isString() && newData.val().length <= 2048 && newData.val().matches(/^https:\\/\\/.+/)"
+        },
+        "watchUrl": {
+          ".validate": "newData.isString() && newData.val().length <= 2048 && newData.val().matches(/^https:\\/\\/.+/)"
+        },
+        "rating": {
+          ".validate": "newData.isNumber() && (newData.val() === 0 || newData.val() === 1 || newData.val() === 2 || newData.val() === 3 || newData.val() === 4 || newData.val() === 5)"
+        },
+        "watched": {
+          ".validate": "newData.isBoolean()"
+        },
+        "createdAt": {
+          ".validate": "newData.isNumber() && newData.val() > 0"
+        },
+        "$other": {
+          ".validate": false
+        }
+      }
+    }
+  }
+}
