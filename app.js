@@ -264,7 +264,12 @@ function createCard(show) {
   toggle.setAttribute("role", "switch");
   toggle.setAttribute("aria-label", "סטטוס צפייה של " + show.title);
   toggle.setAttribute("aria-checked", String(show.watched));
-  toggle.append(el("span", "toggle-track"), el("span", "", show.watched ? "צפיתי" : "לא צפיתי"));
+  const watchLabel = el("span", "watch-text");
+  watchLabel.append(
+    icon(show.watched ? "fa-solid fa-circle-check" : "fa-regular fa-circle"),
+    document.createTextNode(show.watched ? "צפיתי" : "לא צפיתי")
+  );
+  toggle.append(watchLabel, el("span", "toggle-track"));
   toggle.addEventListener("click", () => patchShow(show.id, { watched: !show.watched }));
 
   const buttons = el("div", "card-buttons");
