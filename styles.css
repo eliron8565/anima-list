@@ -72,7 +72,9 @@ a { color: inherit; text-decoration: none; }
 .card { border: 1px solid rgba(255,255,255,.10); border-radius: 17px; background: #151a2a; overflow: hidden; min-width: 0; transition: transform .25s ease, box-shadow .25s ease, border-color .25s ease; }
 .card:hover { transform: translateY(-8px); border-color: rgba(151,125,255,.5); box-shadow: 0 20px 45px rgba(0,0,0,.33), 0 0 25px rgba(125,82,242,.09); }
 .poster { position: relative; aspect-ratio: 2 / 3; background: radial-gradient(ellipse at 28% 28%, #4f3b97, #181e32 70%); overflow: hidden; }
-.poster::before { content: "▶"; display: grid; place-items: center; position: absolute; inset: 0; color: #b7a2ff; font-size: 44px; opacity: .55; }
+.poster-placeholder { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 12px; color: #b7a2ff; background: radial-gradient(ellipse at 45% 38%, #46367d 0%, #191e34 66%, #121827 100%); }
+.poster-placeholder i { font-size: 54px; opacity: .62; filter: drop-shadow(0 5px 18px #a28aff38); }
+.poster-placeholder span { direction: ltr; font-size: 13px; font-weight: 900; letter-spacing: 2px; opacity: .8; }
 .poster img { width: 100%; height: 100%; display: block; position: relative; z-index: 1; object-fit: cover; transition: transform .45s; }
 .poster img.is-broken { opacity: 0; }
 .card:hover .poster img:not(.is-broken) { transform: scale(1.06); }
