@@ -197,6 +197,9 @@ function createCard(show) {
   poster.append(badge, titleElement);
 
   const body = el("div", "card-body");
+  const mobileTitle = el("h3", "mobile-card-title", show.title);
+  mobileTitle.setAttribute("dir", "auto");
+  body.append(mobileTitle);
   const categoryRow = el("div", "category-row");
   categoryRow.append(el("span", "mini-label", "סוג תוכן"));
   const categorySelect = el("select", "category-select");
@@ -302,8 +305,8 @@ function createCard(show) {
 
   buttons.append(editButton, deleteButton);
   actions.append(toggle, buttons);
-  body.append(categoryRow, ratingRow, actions);
-  card.append(poster, body);
+  body.append(categoryRow, ratingRow);
+  card.append(poster, body, actions);
   return card;
 }
 
